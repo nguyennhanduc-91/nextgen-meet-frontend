@@ -18,7 +18,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 RUN pnpm install
 
 # =================================================================
-# 4. GHI ĐÈ TRỰC TIẾP FILE API ĐỂ BẢO ĐẢM 100% CÓ QUYỀN ADMIN
+# 4. GHI ĐÈ FILE API CHUẨN (FIX LỖI 401 UNAUTHORIZED + QUYỀN ADMIN)
 # =================================================================
 RUN cat <<'EOF' > app/api/connection-details/route.ts
 import { getLiveKitURL } from '@/lib/getLiveKitURL';
@@ -43,31 +43,31 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
     }
 
-    const participantToken = crypto.randomUUID().substring(0, 8);
-    const identity = `${participantName}__${participantToken}`;
+    const identity = `${participantName}__${crypto.randomUUID().substring(0, 8)}`;
 
-    // ÉP CẤP QUYỀN ADMIN TẠI ĐÂY
     const grant: VideoGrant = {
       roomJoin: true,
       room: roomName,
-      roomAdmin: true, // <--- QUYỀN LỰC ĐƯỢC ÉP BUỘC Ở ĐÂY
+      roomAdmin: true, // ĐÃ CẤP QUYỀN ADMIN
       canPublish: true,
       canPublishData: true,
       canSubscribe: true,
     };
 
-    const token = new AccessToken(API_KEY, API_SECRET, {
+    const at = new AccessToken(API_KEY, API_SECRET, {
       identity,
       name: participantName,
     });
-    token.addGrant(grant);
+    at.addGrant(grant);
+
+    // FIX: Phải dùng await at.toJwt() để lấy mã JWT thực sự
+    const jwtToken = await at.toJwt();
 
     return NextResponse.json({
       serverUrl: region ? getLiveKitURL(LIVEKIT_URL, region) : LIVEKIT_URL,
       roomName,
       participantName,
-      participantToken,
-      token: await token.toJwt(),
+      participantToken: jwtToken, // TRẢ VỀ JWT TOKEN CHUẨN CHO FRONTEND
     });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
