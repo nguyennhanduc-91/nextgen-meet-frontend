@@ -9,14 +9,14 @@ RUN git clone https://github.com/livekit/meet.git .
 # Kéo dữ liệu LFS
 RUN git lfs install && git lfs pull
 
-# --- CHIẾN DỊCH ĐẠI TU GIAO DIỆN (PHIÊN BẢN QUÉT ĐỆ QUY TẬN GỐC) ---
+# --- CHIẾN DỊCH ĐẠI TU GIAO DIỆN (PHIÊN BẢN AN TOÀN TUYỆT ĐỐI VỚI CODE LÕI) ---
 
 # 1. GHI ĐÈ CÁC FILE ẢNH BẰNG SVG TRỐNG ĐỂ FIX TRIỆT ĐỂ LỖI 404 SERVICE WORKER
 RUN mkdir -p public/images && \
     echo '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>' > public/images/livekit-meet-home.svg && \
     echo '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>' > public/favicon.ico
 
-# 2. SCRIPT QUÉT ĐỆ QUY TOÀN BỘ PROJECT VÀ THAY THẾ MẠNH TAY
+# 2. SCRIPT QUÉT ĐỆ QUY VÀ THAY THẾ CHỈ HTML (BẢO TOÀN BIẾN LẬP TRÌNH)
 RUN cat <<'EOF' > rebrand.js
 const fs = require('fs');
 const path = require('path');
@@ -43,18 +43,17 @@ function walk(dir) {
       content = content.replace(/<a[^>]*href=["'][^"']*github\.com\/livekit[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, '<b style={{color: "#ffffff"}}>Thanh Nguyen</b>');
       content = content.replace(/<a[^>]*href=["'][^"']*livekit\.io[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, '<b style={{color: "#ffffff"}}>Group</b>');
 
-      // Đổi tên thương hiệu (xử lý các ký tự khoảng trắng đặc biệt &nbsp;)
-      content = content.replace(/LiveKit(?:&nbsp;|\s|{"\\u00A0"}|\\u00A0)*Meet/gi, 'NextGen Meet');
-      content = content.replace(/LiveKit(?:&nbsp;|\s|{"\\u00A0"}|\\u00A0)*Components/gi, 'Thanh Nguyen');
-      content = content.replace(/LiveKit(?:&nbsp;|\s|{"\\u00A0"}|\\u00A0)*Cloud/gi, 'Group');
-      content = content.replace(/LiveKit(?:&nbsp;|\s|{"\\u00A0"}|\\u00A0)*Server/gi, 'Máy chủ TN');
+      // Đổi tên thương hiệu (DÙNG DẤU + ĐỂ BẮT BUỘC CÓ KHOẢNG TRẮNG, TRÁNH LÀM HỎNG TÊN BIẾN TRONG CODE)
+      content = content.replace(/LiveKit(?:&nbsp;|\s|{"\\u00A0"}|\\u00A0)+Meet/gi, 'NextGen Meet');
+      content = content.replace(/LiveKit(?:&nbsp;|\s|{"\\u00A0"}|\\u00A0)+Components/gi, 'Thanh Nguyen');
+      content = content.replace(/LiveKit(?:&nbsp;|\s|{"\\u00A0"}|\\u00A0)+Cloud/gi, 'Group');
 
-      // Dịch từng đoạn Text chính xác
+      // Dịch các đoạn Text chính xác (Không dùng regex càn quét)
+      content = content.replace(/LiveKit Server URL/gi, 'Địa chỉ Máy chủ TN');
       content = content.replace(/Open source video conferencing app built on/gi, 'Hệ thống hội nghị trực tuyến bảo mật cao của');
       content = content.replace(/and Next\.js\./gi, '');
-      
       content = content.replace(/Try NextGen Meet for free with our live demo project\./gi, 'Tạo hoặc tham gia phòng họp trực tuyến bảo mật ngay.');
-      content = content.replace(/Connect NextGen Meet with a custom server using Group or Máy chủ TN\./gi, 'Kết nối mạng nội bộ an toàn bằng hệ thống máy chủ mã hóa của Thanh Nguyen Group.');
+      content = content.replace(/Connect NextGen Meet with a custom server using Group or LiveKit Server\./gi, 'Kết nối mạng nội bộ an toàn bằng hệ thống máy chủ mã hóa của Thanh Nguyen Group.');
 
       // Dịch các Nút bấm & Nhãn UI
       content = content.replace(/>\s*Demo\s*</gi, '>Phòng ngẫu nhiên<');
