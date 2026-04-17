@@ -14,7 +14,7 @@ RUN mkdir -p public/images && \
     echo '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>' > public/images/livekit-meet-home.svg && \
     echo '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>' > public/favicon.ico
 
-# 2. SCRIPT XỬ LÝ LOGIC BACKEND VÀ GIAO DIỆN FRONTEND
+# 2. SCRIPT XỬ LÝ: CHỈ DỊCH GIAO DIỆN (.TSX), BẢO TOÀN LOGIC (.TS)
 RUN cat <<'EOF' > rebrand.js
 const fs = require('fs');
 const path = require('path');
@@ -28,99 +28,98 @@ function walk(dir) {
       if (!['node_modules', '.git', '.next', 'public'].includes(file)) {
         walk(fullPath);
       }
-    } else if (fullPath.match(/\.(tsx|ts|jsx|js|html)$/)) {
+    } else {
       let content = fs.readFileSync(fullPath, 'utf-8');
       let orig = content;
 
       // ====================================================================
       // PHẦN 1: MỞ KHÓA QUYỀN QUẢN TRỊ (HOST CONTROLS) TRONG API TOKEN
+      // Chỉ áp dụng cho các file API sinh token (đuôi .ts)
       // ====================================================================
-      // Tiêm quyền roomAdmin: true vào hàm tạo Token của LiveKit Backend
-      if (fullPath.includes('route.ts') || fullPath.includes('token')) {
+      if (fullPath.match(/route\.ts$/) || fullPath.includes('token')) {
+        // Cấp quyền Admin cho tất cả mọi người tham gia phòng họp (Tạm thời để test tính năng Kick/Mute)
         content = content.replace(/roomJoin:\s*true,/g, 'roomJoin: true, roomAdmin: true,');
       }
 
       // ====================================================================
-      // PHẦN 2: THIẾT KẾ GIAO DIỆN TRANG CHỦ ENTERPRISE (THANH NGUYEN GROUP)
+      // PHẦN 2: THIẾT KẾ LẠI GIAO DIỆN & VIỆT HÓA 
+      // Chỉ áp dụng cho các file hiển thị React (.tsx, .jsx) ĐỂ TRÁNH LỖI BIẾN
       // ====================================================================
-      if (fullPath.includes('page.tsx')) {
-        const newHeader = `<div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1.25rem", marginBottom: "2.5rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-            <div style={{ background: "linear-gradient(135deg, #ef4444 0%, #991b1b 100%)", width: "60px", height: "60px", borderRadius: "16px", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "900", fontSize: "28px", boxShadow: "0 10px 30px -5px rgba(220, 38, 38, 0.6)", border: "1px solid rgba(255,255,255,0.1)" }}>TN</div>
-            <h1 style={{ fontSize: "46px", fontWeight: "900", color: "white", margin: 0, letterSpacing: "-0.04em", fontFamily: "system-ui, sans-serif" }}>NextGen <span style={{ color: "#ef4444" }}>Meet</span></h1>
-          </div>
-          <div style={{ textAlign: "center", maxWidth: "600px" }}>
-            <p style={{ color: "#e4e4e7", fontSize: "1.2rem", fontWeight: "500", margin: "0 0 8px 0" }}>Hệ thống hội nghị trực tuyến bảo mật cấp độ doanh nghiệp.</p>
-            <p style={{ color: "#a1a1aa", fontSize: "0.95rem", margin: 0 }}>Phát triển và vận hành độc quyền bởi <b style={{color: "#ffffff"}}>Thanh Nguyen Group</b>.</p>
-          </div>
-        </div>`;
-        content = content.replace(/<div className="header">[\s\S]*?<\/div>/i, newHeader);
+      if (fullPath.match(/\.(tsx|jsx)$/)) {
+        
+        // --- ĐẬP BỎ VÀ XÂY MỚI TRANG CHỦ ---
+        if (fullPath.includes('page.tsx')) {
+          const newHeader = `<div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1.25rem", marginBottom: "2.5rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              <div style={{ background: "linear-gradient(135deg, #ef4444 0%, #991b1b 100%)", width: "60px", height: "60px", borderRadius: "16px", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "900", fontSize: "28px", boxShadow: "0 10px 30px -5px rgba(220, 38, 38, 0.6)", border: "1px solid rgba(255,255,255,0.1)" }}>TN</div>
+              <h1 style={{ fontSize: "46px", fontWeight: "900", color: "white", margin: 0, letterSpacing: "-0.04em", fontFamily: "system-ui, sans-serif" }}>NextGen <span style={{ color: "#ef4444" }}>Meet</span></h1>
+            </div>
+            <div style={{ textAlign: "center", maxWidth: "600px" }}>
+              <p style={{ color: "#e4e4e7", fontSize: "1.2rem", fontWeight: "500", margin: "0 0 8px 0" }}>Hệ thống hội nghị trực tuyến bảo mật cấp độ doanh nghiệp.</p>
+              <p style={{ color: "#a1a1aa", fontSize: "0.95rem", margin: 0 }}>Phát triển và vận hành độc quyền bởi <b style={{color: "#ffffff"}}>Thanh Nguyen Group</b>.</p>
+            </div>
+          </div>`;
+          content = content.replace(/<div className="header">[\s\S]*?<\/div>/i, newHeader);
 
-        const newFooter = `<footer style={{ marginTop: "auto", padding: "2.5rem 1rem", textAlign: "center", color: "#71717a", fontSize: "0.9rem", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-          <p style={{ margin: "0 0 6px 0" }}>Bản quyền © 2026 <b style={{color:"#a1a1aa"}}>Thanh Nguyen Group</b>. All rights reserved.</p>
-          <p style={{ margin: 0, fontSize: "0.8rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
-            <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#10b981", boxShadow: "0 0 8px #10b981" }}></span> 
-            Hệ thống được mã hóa đầu cuối (E2EE) đảm bảo an toàn dữ liệu tuyệt đối.
-          </p>
-        </footer>`;
-        content = content.replace(/<footer[^>]*>[\s\S]*?<\/footer>/i, newFooter);
+          const newFooter = `<footer style={{ marginTop: "auto", padding: "2.5rem 1rem", textAlign: "center", color: "#71717a", fontSize: "0.9rem", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+            <p style={{ margin: "0 0 6px 0" }}>Bản quyền © 2026 <b style={{color:"#a1a1aa"}}>Thanh Nguyen Group</b>. All rights reserved.</p>
+            <p style={{ margin: 0, fontSize: "0.8rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+              <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#10b981", boxShadow: "0 0 8px #10b981" }}></span> 
+              Hệ thống được mã hóa đầu cuối (E2EE) đảm bảo an toàn dữ liệu tuyệt đối.
+            </p>
+          </footer>`;
+          content = content.replace(/<footer[^>]*>[\s\S]*?<\/footer>/i, newFooter);
+        }
+
+        // --- VIỆT HÓA BÊN TRONG PHÒNG HỌP & QUYỀN HOST ---
+        content = content.replace(/>\s*Microphone\s*</g, '>Micro<');
+        content = content.replace(/"Microphone"/g, '"Micro"');
+        content = content.replace(/>\s*Camera\s*</g, '>Máy ảnh<');
+        content = content.replace(/"Camera"/g, '"Máy ảnh"');
+        content = content.replace(/>\s*Share screen\s*</g, '>Chia sẻ màn hình<');
+        content = content.replace(/"Share screen"/g, '"Chia sẻ màn hình"');
+        content = content.replace(/>\s*Stop sharing\s*</g, '>Dừng chia sẻ<');
+        content = content.replace(/"Stop sharing"/g, '"Dừng chia sẻ"');
+        content = content.replace(/>\s*Chat\s*</g, '>Trò chuyện<');
+        content = content.replace(/"Chat"/g, '"Trò chuyện"');
+        content = content.replace(/>\s*Settings\s*</g, '>Bảng điều khiển<');
+        content = content.replace(/"Settings"/g, '"Bảng điều khiển"');
+        content = content.replace(/>\s*Leave\s*</g, '>Rời phòng<');
+        content = content.replace(/"Leave"/g, '"Rời phòng"');
+        
+        content = content.replace(/"Default"/g, '"Mặc định"');
+        content = content.replace(/"Select microphone"/g, '"Chọn Micro"');
+        content = content.replace(/"Select camera"/g, '"Chọn Máy ảnh"');
+        
+        content = content.replace(/"Mute"/g, '"Tắt mic"');
+        content = content.replace(/"Unmute"/g, '"Bật mic"');
+        content = content.replace(/"Disable camera"/g, '"Tắt máy ảnh"');
+        content = content.replace(/"Enable camera"/g, '"Bật máy ảnh"');
+        content = content.replace(/"Remove from room"/gi, '"Mời khỏi phòng"');
+        content = content.replace(/>\s*Remove\s*</g, '>Mời ra khỏi phòng<');
+
+        content = content.replace(/>\s*Audio and Video\s*</g, '>Âm thanh & Hình ảnh<');
+        content = content.replace(/>\s*Connection Quality\s*</g, '>Chất lượng kết nối<');
+
+        // --- VIỆT HÓA NGOÀI PHÒNG CHỜ ---
+        content = content.replace(/>\s*Demo\s*</g, '>Họp Nhanh<');
+        content = content.replace(/"Demo"/g, '"Họp Nhanh"');
+        content = content.replace(/>\s*Custom\s*</g, '>Phòng Riêng<');
+        content = content.replace(/"Custom"/g, '"Phòng Riêng"');
+        content = content.replace(/>\s*Start Meeting\s*</g, '>Bắt Đầu Cuộc Họp<');
+        content = content.replace(/"Start Meeting"/g, '"Bắt Đầu Cuộc Họp"');
+        content = content.replace(/>\s*Connect\s*</g, '>Kết Nối<');
+
+        content = content.replace(/placeholder="LiveKit Server URL[^"]*"/gi, 'placeholder="Địa chỉ máy chủ nội bộ (Server URL)"');
+        content = content.replace(/Enable end-to-end encryption/gi, 'Kích hoạt mã hóa bảo mật cấp cao (E2EE)');
+        content = content.replace(/Connect LiveKit Meet with a custom server using LiveKit Cloud or LiveKit Server\./gi, 'Truy cập vào hệ thống máy chủ nội bộ an toàn của Thanh Nguyen Group.');
+        content = content.replace(/Try LiveKit Meet for free with our live demo project\./gi, 'Khởi tạo phòng họp ngay lập tức mà không cần cài đặt phần mềm.');
+
+        // Xóa sạch tên thương hiệu cũ
+        content = content.replace(/LiveKit Meet/gi, 'NextGen Meet');
       }
 
-      // ====================================================================
-      // PHẦN 3: VIỆT HÓA SÂU BÊN TRONG PHÒNG HỌP & QUYỀN HOST
-      // ====================================================================
-      // Thanh công cụ chính
-      content = content.replace(/>\s*Microphone\s*</g, '>Micro<');
-      content = content.replace(/"Microphone"/g, '"Micro"');
-      content = content.replace(/>\s*Camera\s*</g, '>Máy ảnh<');
-      content = content.replace(/"Camera"/g, '"Máy ảnh"');
-      content = content.replace(/>\s*Share screen\s*</g, '>Chia sẻ màn hình<');
-      content = content.replace(/"Share screen"/g, '"Chia sẻ màn hình"');
-      content = content.replace(/>\s*Stop sharing\s*</g, '>Dừng chia sẻ<');
-      content = content.replace(/"Stop sharing"/g, '"Dừng chia sẻ"');
-      content = content.replace(/>\s*Chat\s*</g, '>Trò chuyện<');
-      content = content.replace(/"Chat"/g, '"Trò chuyện"');
-      content = content.replace(/>\s*Settings\s*</g, '>Bảng điều khiển<');
-      content = content.replace(/"Settings"/g, '"Bảng điều khiển"');
-      content = content.replace(/>\s*Leave\s*</g, '>Rời phòng<');
-      content = content.replace(/"Leave"/g, '"Rời phòng"');
-      
-      // Menu cấu hình thiết bị (Nút [v])
-      content = content.replace(/"Default"/g, '"Mặc định"');
-      content = content.replace(/"Select microphone"/g, '"Chọn Micro"');
-      content = content.replace(/"Select camera"/g, '"Chọn Máy ảnh"');
-      
-      // Menu Quản trị viên (Host Controls) khi click vào người khác
-      content = content.replace(/"Mute"/g, '"Tắt mic"');
-      content = content.replace(/"Unmute"/g, '"Bật mic"');
-      content = content.replace(/"Disable camera"/g, '"Tắt máy ảnh"');
-      content = content.replace(/"Enable camera"/g, '"Bật máy ảnh"');
-      content = content.replace(/"Remove from room"/gi, '"Mời khỏi phòng"');
-      content = content.replace(/>\s*Remove\s*</g, '>Mời ra<');
-
-      // Bảng Settings (Chất lượng mạng)
-      content = content.replace(/>\s*Audio and Video\s*</g, '>Âm thanh & Hình ảnh<');
-      content = content.replace(/>\s*Connection Quality\s*</g, '>Chất lượng kết nối<');
-
-      // ====================================================================
-      // PHẦN 4: VIỆT HÓA GIAO DIỆN BÊN NGOÀI & SEO
-      // ====================================================================
-      content = content.replace(/>\s*Demo\s*</g, '>Họp Nhanh<');
-      content = content.replace(/"Demo"/g, '"Họp Nhanh"');
-      content = content.replace(/>\s*Custom\s*</g, '>Phòng Riêng<');
-      content = content.replace(/"Custom"/g, '"Phòng Riêng"');
-      content = content.replace(/Try LiveKit Meet for free with our live demo project\./gi, 'Khởi tạo phòng họp ngay lập tức mà không cần cài đặt phần mềm.');
-      content = content.replace(/Try NextGen Meet for free with our live demo project\./gi, 'Khởi tạo phòng họp ngay lập tức mà không cần cài đặt phần mềm.');
-      content = content.replace(/Connect LiveKit Meet with a custom server using LiveKit Cloud or LiveKit Server\./gi, 'Truy cập vào hệ thống máy chủ nội bộ an toàn của Thanh Nguyen Group.');
-      content = content.replace(/Connect NextGen Meet with a custom server using Group or Máy chủ TN\./gi, 'Truy cập vào hệ thống máy chủ nội bộ an toàn của Thanh Nguyen Group.');
-      content = content.replace(/LiveKit Server URL/gi, 'Địa chỉ máy chủ nội bộ (Server URL)');
-      content = content.replace(/>\s*Start Meeting\s*</g, '>Bắt Đầu Cuộc Họp<');
-      content = content.replace(/"Start Meeting"/g, '"Bắt Đầu Cuộc Họp"');
-      content = content.replace(/Enable end-to-end encryption/gi, 'Kích hoạt mã hóa bảo mật cấp cao (E2EE)');
-      content = content.replace(/>\s*Connect\s*</g, '>Kết Nối<');
-      content = content.replace(/LiveKit(?:&nbsp;|\s|{"\\u00A0"}|\\u00A0)+Meet/gi, 'NextGen Meet');
-      content = content.replace(/LiveKit/g, 'NextGen Meet'); // Dọn dẹp nốt tàn dư
-
+      // Ghi đè file nếu có sự thay đổi
       if (content !== orig) {
         fs.writeFileSync(fullPath, content, 'utf-8');
       }
