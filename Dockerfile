@@ -2,87 +2,96 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Cài đặt công cụ và LFS
+# 1. Cài đặt công cụ và LFS
 RUN apk add --no-cache git bash python3 make g++ git-lfs
 RUN git clone https://github.com/livekit/meet.git .
 RUN git lfs install && git lfs pull
 
-# 1. CÀI ĐẶT THƯ VIỆN TRƯỚC (RẤT QUAN TRỌNG ĐỂ CÓ THỂ CAN THIỆP VÀO LÕI GIAO DIỆN PHÒNG HỌP)
+# 2. Cài đặt thư viện TRƯỚC (Để Lõi phòng họp xuất hiện trong node_modules)
 RUN corepack enable && corepack prepare pnpm@latest --activate
 RUN pnpm install
 
-# 2. XÓA SẠCH ẢNH SEO CŨ CỦA LIVEKIT VÀ TẠO ẢNH TRỐNG BẢO TOÀN HỆ THỐNG
+# 3. GHI ĐÈ ẢNH SEO (DÀNH CHO ZALO/FACEBOOK) BẰNG ẢNH MỚI
 RUN mkdir -p public/images && \
-    echo '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"><rect width="100%" height="100%" fill="#111"/></svg>' > public/images/livekit-meet-open-graph.png && \
-    echo '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>' > public/images/livekit-meet-home.svg
+    echo '<svg width="1200" height="630" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#000"/><text x="50%" y="50%" font-family="sans-serif" font-size="60" font-weight="bold" fill="#dc2626" text-anchor="middle">Thanh Nguyen Group</text></svg>' > public/images/livekit-meet-open-graph.png && \
+    echo '<svg width="32" height="32" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#dc2626"/><text x="50%" y="50%" font-family="sans-serif" font-size="16" font-weight="bold" fill="#fff" text-anchor="middle" dominant-baseline="central">TN</text></svg>' > public/favicon.ico && \
+    cp public/images/livekit-meet-open-graph.png public/images/livekit-meet-home.svg
 
-# 3. SCRIPT CAN THIỆP ĐA TẦNG (SEO ZALO + GIAO DIỆN NGOÀI + QUYỀN HOST + LÕI PHÒNG HỌP)
+# 4. SCRIPT XỬ LÝ ĐA TẦNG (SEO + GIAO DIỆN + LÕI PHÒNG HỌP)
 RUN cat <<'EOF' > rebrand.js
 const fs = require('fs');
 const path = require('path');
 
-function replaceSafely(filePath, replacements) {
-  if (!fs.existsSync(filePath)) return;
-  let content = fs.readFileSync(filePath, 'utf-8');
-  let orig = content;
-  for (const [regex, replacement] of replacements) {
-    content = content.replace(regex, replacement);
+// TẦNG 1: Dịch mã nguồn gốc (Trang chủ & Cấp quyền Host)
+function walkSource(dir) {
+  const files = fs.readdirSync(dir);
+  for (const file of files) {
+    const fullPath = path.join(dir, file);
+    if (fs.statSync(fullPath).isDirectory()) {
+      if (!['node_modules', '.git', '.next', 'public'].includes(file)) walkSource(fullPath);
+    } else {
+      let content = fs.readFileSync(fullPath, 'utf-8');
+      let orig = content;
+
+      // A. Mở khóa quyền HOST (Quản trị viên)
+      if (fullPath.endsWith('route.ts')) {
+         content = content.replace(/roomJoin:\s*true/g, 'roomJoin: true, roomAdmin: true');
+      }
+
+      // B. SEO Metadata (Link Zalo)
+      if (fullPath.endsWith('layout.tsx')) {
+        content = content.replace(/LiveKit Meet \| Conference app build with LiveKit open source/g, 'Hệ thống Họp trực tuyến | Thanh Nguyen Group');
+        content = content.replace(/LiveKit is an open source WebRTC project[^"']*/g, 'Nền tảng họp trực tuyến bảo mật cấp độ doanh nghiệp (E2EE) được phát triển và vận hành độc quyền bởi Thanh Nguyen Group.');
+        content = content.replace(/meet\.livekit\.io/g, 'meet.thanhnguyen.group');
+        content = content.replace(/@livekitted/g, '@thanhnguyen');
+      }
+
+      // C. Rebrand trang chủ Doanh nghiệp
+      if (fullPath.endsWith('page.tsx') && fullPath.includes('app')) {
+        // Thay Logo
+        content = content.replace(/<img[^>]*livekit-meet-home\.svg[^>]*\/?>/g, '<div style={{ display: "flex", alignItems: "center", gap: "16px", justifyContent: "center" }}><div style={{ background: "linear-gradient(135deg, #ef4444 0%, #991b1b 100%)", width: "50px", height: "50px", borderRadius: "14px", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "900", fontSize: "24px", boxShadow: "0 10px 30px -5px rgba(220, 38, 38, 0.6)" }}>TN</div><h1 style={{ fontSize: "40px", fontWeight: "900", color: "white", margin: 0, letterSpacing: "-0.04em" }}>NextGen <span style={{ color: "#ef4444" }}>Meet</span></h1></div>');
+        
+        // Dịch văn bản tĩnh
+        content = content.replace(/Open source video conferencing app built on/g, 'Hệ thống hội nghị trực tuyến bảo mật cao của');
+        content = content.replace(/LiveKit Components/g, 'Thanh Nguyen');
+        content = content.replace(/LiveKit Cloud/g, 'Group');
+        content = content.replace(/and Next\.js\./g, '');
+        content = content.replace(/Try LiveKit Meet for free with our live demo project\./g, 'Khởi tạo phòng họp bảo mật ngay lập tức.');
+        content = content.replace(/Try NextGen Meet for free with our live demo project\./g, 'Khởi tạo phòng họp bảo mật ngay lập tức.');
+        content = content.replace(/"Demo"/g, '"Họp Nhanh"');
+        content = content.replace(/"Custom"/g, '"Phòng Riêng"');
+        content = content.replace(/"Start Meeting"/g, '"Bắt Đầu Cuộc Họp"');
+        content = content.replace(/Enable end-to-end encryption/g, 'Kích hoạt mã hóa bảo mật cấp cao (E2EE)');
+        content = content.replace(/Connect LiveKit Meet with a custom server using LiveKit Cloud or LiveKit Server\./g, 'Truy cập hệ thống máy chủ nội bộ an toàn của Thanh Nguyen Group.');
+        content = content.replace(/LiveKit Server URL/g, 'Địa chỉ máy chủ nội bộ (Server URL)');
+        content = content.replace(/"Connect"/g, '"Kết Nối"');
+        
+        // Sửa Footer
+        content = content.replace(/Hosted on/g, 'Bản quyền © 2026 thuộc về');
+        content = content.replace(/\. Source code on/g, '');
+        content = content.replace(/<a[^>]*href=["'][^"']*github\.com\/livekit[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, '<b style={{color: "#ffffff"}}>Thanh Nguyen</b>');
+        content = content.replace(/<a[^>]*href=["'][^"']*livekit\.io[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, '<b style={{color: "#ffffff"}}>Group</b>');
+      }
+
+      if (content !== orig) fs.writeFileSync(fullPath, content, 'utf-8');
+    }
   }
-  if (content !== orig) fs.writeFileSync(filePath, content, 'utf-8');
 }
+walkSource('src');
 
-// ====================================================================
-// TẦNG 1: SỬA TẬN GỐC SEO (ĐỂ GỬI LINK ZALO HIỆN ĐÚNG THƯƠNG HIỆU)
-// ====================================================================
-replaceSafely('src/app/layout.tsx', [
-  [/LiveKit Meet \| Conference app build with LiveKit open source/g, 'NextGen Meet | Thanh Nguyen Group'],
-  [/LiveKit is an open source WebRTC project[^"']*/g, 'Hệ thống hội nghị trực tuyến bảo mật cấp độ doanh nghiệp (E2EE) được phát triển và vận hành độc quyền bởi Thanh Nguyen Group.'],
-  [/NextGen Meet/g, 'Hệ thống Họp Trực Tuyến - Thanh Nguyen Group'],
-  [/@livekitted/g, '@thanhnguyen']
-]);
-
-// ====================================================================
-// TẦNG 2: MỞ KHÓA QUYỀN QUẢN TRỊ (HOST CONTROLS) TRONG API TOKEN
-// ====================================================================
-// Cấp quyền Admin cho mọi Token được tạo ra (Để bạn kick/mute được người khác)
-replaceSafely('src/app/api/connection-details/route.ts', [
-  [/roomJoin:\s*true,/g, 'roomJoin: true, roomAdmin: true,']
-]);
-
-// ====================================================================
-// TẦNG 3: ĐẬP BỎ VÀ XÂY MỚI TRANG CHỦ THEO CHUẨN ENTERPRISE
-// ====================================================================
-replaceSafely('src/app/page.tsx', [
-  [/<div className="header">[\s\S]*?<\/div>/i, `<div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1.25rem", marginBottom: "2.5rem" }}><div style={{ display: "flex", alignItems: "center", gap: "16px" }}><div style={{ background: "linear-gradient(135deg, #ef4444 0%, #991b1b 100%)", width: "60px", height: "60px", borderRadius: "16px", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "900", fontSize: "28px", boxShadow: "0 10px 30px -5px rgba(220, 38, 38, 0.6)", border: "1px solid rgba(255,255,255,0.1)" }}>TN</div><h1 style={{ fontSize: "46px", fontWeight: "900", color: "white", margin: 0, letterSpacing: "-0.04em", fontFamily: "system-ui, sans-serif" }}>NextGen <span style={{ color: "#ef4444" }}>Meet</span></h1></div><div style={{ textAlign: "center", maxWidth: "600px" }}><p style={{ color: "#e4e4e7", fontSize: "1.2rem", fontWeight: "500", margin: "0 0 8px 0" }}>Hệ thống hội nghị trực tuyến bảo mật cấp độ doanh nghiệp.</p><p style={{ color: "#a1a1aa", fontSize: "0.95rem", margin: 0 }}>Phát triển và vận hành độc quyền bởi <b style={{color: "#ffffff"}}>Thanh Nguyen Group</b>.</p></div></div>`],
-  [/<footer[^>]*>[\s\S]*?<\/footer>/i, `<footer style={{ marginTop: "auto", padding: "2.5rem 1rem", textAlign: "center", color: "#71717a", fontSize: "0.9rem", borderTop: "1px solid rgba(255,255,255,0.05)" }}><p style={{ margin: "0 0 6px 0" }}>Bản quyền © 2026 <b style={{color:"#a1a1aa"}}>Thanh Nguyen Group</b>. All rights reserved.</p><p style={{ margin: 0, fontSize: "0.8rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}><span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#10b981", boxShadow: "0 0 8px #10b981" }}></span> Hệ thống được mã hóa đầu cuối (E2EE) đảm bảo an toàn dữ liệu tuyệt đối.</p></footer>`],
-  [/>\s*Demo\s*</g, '>Họp Nhanh<'],
-  [/"Demo"/g, '"Họp Nhanh"'],
-  [/>\s*Custom\s*</g, '>Phòng Riêng<'],
-  [/"Custom"/g, '"Phòng Riêng"'],
-  [/>\s*Start Meeting\s*</g, '>Bắt Đầu Cuộc Họp<'],
-  [/"Start Meeting"/g, '"Bắt Đầu Cuộc Họp"'],
-  [/>\s*Connect\s*</g, '>Kết Nối<'],
-  [/placeholder="LiveKit Server URL[^"]*"/gi, 'placeholder="Địa chỉ máy chủ nội bộ (Server URL)"'],
-  [/Enable end-to-end encryption/gi, 'Kích hoạt mã hóa bảo mật cấp cao (E2EE)'],
-  [/Connect LiveKit Meet with a custom server using LiveKit Cloud or LiveKit Server\./gi, 'Truy cập vào hệ thống máy chủ nội bộ an toàn của Thanh Nguyen Group.'],
-  [/Try LiveKit Meet for free with our live demo project\./gi, 'Khởi tạo phòng họp ngay lập tức mà không cần cài đặt phần mềm.']
-]);
-
-// ====================================================================
-// TẦNG 4: DỊCH LÕI THƯ VIỆN BÊN TRONG PHÒNG HỌP (NPM PATCHING)
-// ====================================================================
-function patchLibrary(dir) {
+// TẦNG 2: Dịch Lõi thư viện (Bên trong phòng họp)
+function patchNodeModules(dir) {
   if (!fs.existsSync(dir)) return;
   const files = fs.readdirSync(dir);
   for (const file of files) {
     const fullPath = path.join(dir, file);
     if (fs.statSync(fullPath).isDirectory()) {
-      patchLibrary(fullPath);
+      patchNodeModules(fullPath);
     } else if (fullPath.endsWith('.js') || fullPath.endsWith('.mjs')) {
       let content = fs.readFileSync(fullPath, 'utf-8');
       let orig = content;
       
-      // Dịch Thanh công cụ
+      // Dịch chuẩn xác các nút bấm
       content = content.replace(/"Microphone"/g, '"Micro"');
       content = content.replace(/"Camera"/g, '"Máy ảnh"');
       content = content.replace(/"Share screen"/g, '"Chia sẻ"');
@@ -91,22 +100,23 @@ function patchLibrary(dir) {
       content = content.replace(/"Settings"/g, '"Cài đặt"');
       content = content.replace(/"Leave"/g, '"Rời phòng"');
       
-      // Dịch Menu Admin / Ngữ cảnh
+      // Menu Admin (Host Controls)
       content = content.replace(/"Disable camera"/g, '"Tắt máy ảnh"');
       content = content.replace(/"Enable camera"/g, '"Bật máy ảnh"');
       content = content.replace(/"Mute"/g, '"Tắt mic"');
       content = content.replace(/"Unmute"/g, '"Bật mic"');
       content = content.replace(/"Remove from room"/g, '"Mời ra khỏi phòng"');
+      
+      // Dịch tùy chọn thiết bị
       content = content.replace(/"Select microphone"/g, '"Chọn Micro"');
       content = content.replace(/"Select camera"/g, '"Chọn Máy ảnh"');
+      content = content.replace(/"Default"/g, '"Mặc định"');
 
       if (content !== orig) fs.writeFileSync(fullPath, content, 'utf-8');
     }
   }
 }
-// Chọc thẳng vào thư mục biên dịch của LiveKit để Việt hóa
-patchLibrary('node_modules/@livekit/components-react/dist');
-patchLibrary('node_modules/@livekit/components-core/dist');
+patchNodeModules('node_modules/@livekit/components-react/dist');
 
 EOF
 RUN node rebrand.js
