@@ -218,7 +218,7 @@ if (fs.existsSync(cssPath)) {
 }
 
 .lk-participant-tile {
-    border-radius: 16px !important;
+    border-radius: 5px !important;
     border: 1px solid rgba(255,255,255,0.08) !important;
 }
 
