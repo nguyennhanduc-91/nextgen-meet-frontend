@@ -19,23 +19,27 @@ RUN pnpm install
 
 # --- NHÚNG BIẾN MÔI TRƯỜNG ---
 ENV NEXT_PUBLIC_LIVEKIT_URL="wss://livekit.thanhnguyen.group"
+# BỔ SUNG BIẾN NÀY ĐỂ FIX LỖI API 500
+ENV LIVEKIT_URL="wss://livekit.thanhnguyen.group" 
 ENV LIVEKIT_API_KEY="API_nextgen_admin_key"
 ENV LIVEKIT_API_SECRET="SEC_thanhnguyen_group_super_secure_9999"
 
 # Build ứng dụng
 RUN pnpm run build
 
-# --- CHẠY ỨNG DỤNG (CHIẾN THUẬT MỚI: CHẠY TRỰC TIẾP) ---
+# --- CHẠY ỨNG DỤNG ---
 FROM node:18-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV HOSTNAME="0.0.0.0"
 
 ENV NEXT_PUBLIC_LIVEKIT_URL="wss://livekit.thanhnguyen.group"
+# BỔ SUNG BIẾN NÀY ĐỂ FIX LỖI API 500
+ENV LIVEKIT_URL="wss://livekit.thanhnguyen.group"
 ENV LIVEKIT_API_KEY="API_nextgen_admin_key"
 ENV LIVEKIT_API_SECRET="SEC_thanhnguyen_group_super_secure_9999"
 
-# Copy TOÀN BỘ thư mục từ bước build sang (Bỏ qua standalone)
+# Copy TOÀN BỘ thư mục từ bước build sang
 COPY --from=builder /app ./
 
 # Kích hoạt lại pnpm trong môi trường chạy
