@@ -1,8 +1,8 @@
-# Nâng cấp Node 20
+# Sử dụng Node 20
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# 1. Cài đặt công cụ và LFS
+# 1. Cài đặt công cụ
 RUN apk add --no-cache git bash python3 make g++ git-lfs wget
 RUN git clone https://github.com/livekit/meet.git .
 RUN git lfs install && git lfs pull
@@ -18,67 +18,9 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 RUN pnpm install
 
 # =================================================================
-# 4. GHI ĐÈ FILE API CHUẨN (FIX LỖI 401 UNAUTHORIZED + QUYỀN ADMIN)
+# 4. KỊCH BẢN LỘT XÁC TOÀN DIỆN (UI CSS + QUYỀN ADMIN + DỊCH THUẬT)
 # =================================================================
-RUN cat <<'EOF' > app/api/connection-details/route.ts
-import { getLiveKitURL } from '@/lib/getLiveKitURL';
-import { ConnectionDetails } from '@/lib/types';
-import { AccessToken, AccessTokenOptions, VideoGrant } from 'livekit-server-sdk';
-import { NextRequest, NextResponse } from 'next/server';
-
-const API_KEY = process.env.LIVEKIT_API_KEY;
-const API_SECRET = process.env.LIVEKIT_API_SECRET;
-const LIVEKIT_URL = process.env.LIVEKIT_URL;
-
-export async function GET(request: NextRequest) {
-  try {
-    const roomName = request.nextUrl.searchParams.get('roomName');
-    const participantName = request.nextUrl.searchParams.get('participantName');
-    const region = request.nextUrl.searchParams.get('region');
-
-    if (!roomName || !participantName) {
-      return NextResponse.json({ error: 'Missing roomName or participantName' }, { status: 400 });
-    }
-    if (!API_KEY || !API_SECRET || !LIVEKIT_URL) {
-      return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
-    }
-
-    const identity = `${participantName}__${crypto.randomUUID().substring(0, 8)}`;
-
-    const grant: VideoGrant = {
-      roomJoin: true,
-      room: roomName,
-      roomAdmin: true, // ĐÃ CẤP QUYỀN ADMIN
-      canPublish: true,
-      canPublishData: true,
-      canSubscribe: true,
-    };
-
-    const at = new AccessToken(API_KEY, API_SECRET, {
-      identity,
-      name: participantName,
-    });
-    at.addGrant(grant);
-
-    // FIX: Phải dùng await at.toJwt() để lấy mã JWT thực sự
-    const jwtToken = await at.toJwt();
-
-    return NextResponse.json({
-      serverUrl: region ? getLiveKitURL(LIVEKIT_URL, region) : LIVEKIT_URL,
-      roomName,
-      participantName,
-      participantToken: jwtToken, // TRẢ VỀ JWT TOKEN CHUẨN CHO FRONTEND
-    });
-  } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
-  }
-}
-EOF
-
-# =================================================================
-# 5. KỊCH BẢN THIẾT KẾ LẠI GIAO DIỆN & VIỆT HÓA
-# =================================================================
-RUN cat <<'EOF' > build_enterprise.js
+RUN cat <<'EOF' > build_premium.js
 const fs = require('fs');
 const path = require('path');
 
@@ -89,25 +31,63 @@ function overrideFile(filePath, replacerCallback) {
     if (orig !== modified) fs.writeFileSync(filePath, modified, 'utf8');
 }
 
-// 5.1. THIẾT KẾ LẠI GIAO DIỆN TRANG CHỦ CHUYÊN NGHIỆP
+// --- 4.1. ÉP QUYỀN ADMIN CHO NGƯỜI DÙNG TẠO PHÒNG ---
+overrideFile('app/api/connection-details/route.ts', (content) => {
+    return content.replace(/roomJoin:\s*true,?\s*room:\s*roomName,?/g, 'roomJoin: true, room: roomName, roomAdmin: true,');
+});
+
+// --- 4.2. BƠM CSS ĐỂ LỘT XÁC GIAO DIỆN BÊN TRONG PHÒNG HỌP ---
+const cssPath = 'styles/globals.css';
+if (fs.existsSync(cssPath)) {
+    const customCSS = `
+/* --- THANH NGUYEN PREMIUM UI OVERRIDES --- */
+.lk-control-bar {
+    background: rgba(24, 24, 27, 0.85) !important;
+    backdrop-filter: blur(12px) !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    padding: 1rem !important;
+}
+.lk-button {
+    border-radius: 12px !important;
+    transition: all 0.2s ease !important;
+}
+.lk-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+.lk-participant-tile {
+    border-radius: 16px !important;
+    overflow: hidden !important;
+    border: 1px solid rgba(255,255,255,0.05) !important;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2) !important;
+}
+.lk-disconnect-button {
+    background-color: #ef4444 !important;
+    border-radius: 12px !important;
+}
+`;
+    fs.appendFileSync(cssPath, customCSS, 'utf8');
+}
+
+// --- 4.3. THIẾT KẾ LẠI GIAO DIỆN TRANG CHỦ & FOOTER ---
 overrideFile('app/page.tsx', (content) => {
     content = content.replace(/<img[^>]*livekit-meet-home\.svg[^>]*\/?>/gi, 
         `<div style={{ display: "flex", alignItems: "center", gap: "16px", justifyContent: "center", paddingBottom: "10px" }}>
-            <div style={{ background: "linear-gradient(135deg, #ef4444 0%, #991b1b 100%)", width: "55px", height: "55px", borderRadius: "14px", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "900", fontSize: "26px", boxShadow: "0 10px 25px -5px rgba(220, 38, 38, 0.6)", border: "1px solid rgba(255,255,255,0.1)" }}>TN</div>
-            <h1 style={{ fontSize: "42px", fontWeight: "900", color: "white", margin: 0, letterSpacing: "-0.04em", fontFamily: "system-ui, sans-serif" }}>NextGen <span style={{ color: "#ef4444" }}>Meet</span></h1>
+            <div style={{ background: "linear-gradient(135deg, #ef4444 0%, #991b1b 100%)", width: "55px", height: "55px", borderRadius: "16px", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "900", fontSize: "26px", boxShadow: "0 10px 25px -5px rgba(220, 38, 38, 0.6)", border: "1px solid rgba(255,255,255,0.15)" }}>TN</div>
+            <h1 style={{ fontSize: "44px", fontWeight: "900", color: "white", margin: 0, letterSpacing: "-0.04em", fontFamily: "system-ui, sans-serif" }}>NextGen <span style={{ color: "#ef4444" }}>Meet</span></h1>
         </div>`
     );
     content = content.replace(/<h2[^>]*>[\s\S]*?<\/h2>/gi, 
-        `<div style={{ textAlign: "center", maxWidth: "600px", marginBottom: "2rem" }}>
-            <p style={{ color: "#e4e4e7", fontSize: "1.15rem", fontWeight: "500", margin: "0 0 8px 0" }}>Nền tảng hội nghị trực tuyến bảo mật cấp độ doanh nghiệp.</p>
+        `<div style={{ textAlign: "center", maxWidth: "600px", marginBottom: "2.5rem" }}>
+            <p style={{ color: "#e4e4e7", fontSize: "1.2rem", fontWeight: "500", margin: "0 0 8px 0" }}>Nền tảng hội nghị trực tuyến bảo mật cấp độ doanh nghiệp.</p>
             <p style={{ color: "#a1a1aa", fontSize: "0.95rem", margin: 0 }}>Phát triển và vận hành độc quyền bởi <b style={{color: "#ffffff"}}>Thanh Nguyen Group</b>.</p>
         </div>`
     );
     content = content.replace(/<footer[^>]*>[\s\S]*?<\/footer>/gi, 
         `<footer style={{ marginTop: "auto", padding: "2rem 1rem", textAlign: "center", color: "#71717a", fontSize: "0.9rem", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-            <p style={{ margin: "0 0 6px 0" }}>Bản quyền © 2026 <b style={{color:"#a1a1aa"}}>Thanh Nguyen Group</b>. Hệ thống hạ tầng mạng nội bộ.</p>
-            <p style={{ margin: 0, fontSize: "0.8rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
-                <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#10b981", boxShadow: "0 0 8px #10b981", animation: "pulse 2s infinite" }}></span> 
+            <p style={{ margin: "0 0 6px 0" }}>Bản quyền © 2026 <b style={{color:"#e4e4e7"}}>Thanh Nguyen Group</b>. Hạ tầng mạng viễn thông nội bộ.</p>
+            <p style={{ margin: 0, fontSize: "0.85rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", backgroundColor: "#10b981", boxShadow: "0 0 10px #10b981", animation: "pulse 2s infinite" }}></span> 
                 Đường truyền mã hóa E2EE bảo mật tuyệt đối.
             </p>
         </footer>`
@@ -127,7 +107,7 @@ overrideFile('app/page.tsx', (content) => {
     return content;
 });
 
-// 5.2. CẬP NHẬT SEO META (ZALO)
+// --- 4.4. CẬP NHẬT SEO META (ZALO) ---
 overrideFile('app/layout.tsx', (content) => {
     content = content.replace(/LiveKit Meet \| Conference app build with LiveKit open source/g, 'Hệ thống Họp trực tuyến | Thanh Nguyen Group');
     content = content.replace(/LiveKit is an open source WebRTC project[^"']*/g, 'Nền tảng họp trực tuyến bảo mật cấp độ doanh nghiệp (E2EE) được phát triển và vận hành độc quyền bởi Thanh Nguyen Group.');
@@ -135,7 +115,7 @@ overrideFile('app/layout.tsx', (content) => {
     return content;
 });
 
-// 5.3. VIỆT HÓA SÂU LÕI PHÒNG HỌP
+// --- 4.5. VIỆT HÓA SÂU LÕI PHÒNG HỌP ---
 function translateNodeModules(dir) {
     if (!fs.existsSync(dir)) return;
     const files = fs.readdirSync(dir);
@@ -164,9 +144,9 @@ function translateNodeModules(dir) {
 translateNodeModules('node_modules/@livekit/components-react/dist');
 translateNodeModules('node_modules/@livekit/components-core/dist');
 EOF
-RUN node build_enterprise.js
+RUN node build_premium.js
 
-# 6. Khai báo thông số Server
+# 5. Khai báo thông số Server
 ENV NEXT_PUBLIC_LIVEKIT_URL="wss://livekit.thanhnguyen.group"
 ENV LIVEKIT_URL="wss://livekit.thanhnguyen.group" 
 ENV LIVEKIT_API_KEY="API_nextgen_admin_key"
