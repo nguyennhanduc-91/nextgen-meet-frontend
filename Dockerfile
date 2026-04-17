@@ -24,6 +24,7 @@ const path = require('path');
 
 // TẦNG 1: Dịch mã nguồn gốc (Trang chủ & Cấp quyền Host)
 function walkSource(dir) {
+  if (!fs.existsSync(dir)) return; // Fix an toàn kiểm tra thư mục tồn tại
   const files = fs.readdirSync(dir);
   for (const file of files) {
     const fullPath = path.join(dir, file);
@@ -77,7 +78,8 @@ function walkSource(dir) {
     }
   }
 }
-walkSource('src');
+// FIX: Quét toàn bộ thư mục gốc thay vì chỉ quét thư mục 'src'
+walkSource('.');
 
 // TẦNG 2: Dịch Lõi thư viện (Bên trong phòng họp)
 function patchNodeModules(dir) {
