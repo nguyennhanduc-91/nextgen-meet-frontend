@@ -7,7 +7,7 @@ RUN apk add --no-cache git bash python3 make g++ git-lfs wget
 RUN git clone https://github.com/livekit/meet.git .
 RUN git lfs install && git lfs pull
 
-# 2. Tải ảnh SEO Zalo & Banner
+# 2. Tải ảnh SEO Zalo (CHỈ LƯU NGẦM, KHÔNG HIỂN THỊ LÊN WEB)
 RUN mkdir -p public/images && \
     wget -qO public/images/livekit-meet-open-graph.png "https://raw.githubusercontent.com/nguyennhanduc-91/nextgen-meet-frontend/main/ivekit-meet-open-graph.png" || true && \
     echo '<svg width="32" height="32" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#dc2626"/><text x="50%" y="50%" font-family="sans-serif" font-size="16" font-weight="bold" fill="#fff" text-anchor="middle" dominant-baseline="central">TN</text></svg>' > public/favicon.ico && \
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
 EOF
 
 # =================================================================
-# 5. LỘT XÁC UI: GỌN GÀNG, BANNER TINH TẾ, RESPONSIVE MOBILE
+# 5. LỘT XÁC UI: BỎ HOÀN TOÀN ẢNH OPEN GRAPH KHỎI GIAO DIỆN
 # =================================================================
 RUN cat <<'EOF' > app/page.tsx
 'use client';
@@ -120,22 +120,16 @@ export default function Page() {
   return (
     <div style={{ minHeight: "100dvh", backgroundColor: "#09090b", backgroundImage: "radial-gradient(circle at 50% 0%, rgba(220, 38, 38, 0.12), transparent 50%)", display: "flex", flexDirection: "column", fontFamily: "system-ui, -apple-system, sans-serif" }}>
       
-      {/* KHỐI MAIN ÉP CHIỀU CAO VÀ CO GIÃN CHÍNH GIỮA */}
       <main style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "1rem", zIndex: 1, overflowY: "auto" }}>
         
-        {/* HEADER BRANDING */}
+        {/* HEADER BRANDING TỐI GIẢN - ĐÃ XÓA ẢNH OPEN GRAPH */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", width: "100%" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", justifyContent: "center" }}>
             <div className="tn-logo" style={{ background: "linear-gradient(135deg, #ef4444 0%, #991b1b 100%)", borderRadius: "14px", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "900", boxShadow: "0 10px 25px -5px rgba(220, 38, 38, 0.5)", border: "1px solid rgba(255,255,255,0.2)" }}>TN</div>
             <h1 className="tn-title" style={{ fontWeight: "900", color: "white", margin: 0, letterSpacing: "-0.04em" }}>NextGen <span style={{ color: "#ef4444" }}>Meet</span></h1>
           </div>
 
-          {/* BANNER THƯƠNG HIỆU - TINH TẾ & NHỎ GỌN */}
-          <div className="tn-banner" style={{ width: "100%", position: "relative", borderRadius: "14px", padding: "3px", background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 100%)" }}>
-              <img src="/images/livekit-meet-open-graph.png" alt="Thanh Nguyen Banner" style={{ width: "100%", borderRadius: "11px", boxShadow: "0 10px 30px -10px rgba(0,0,0,0.6)", display: "block", objectFit: "cover" }} />
-          </div>
-
-          <div style={{ maxWidth: "500px", margin: "1rem 0 1.5rem 0" }}>
+          <div style={{ maxWidth: "500px", margin: "1.5rem 0" }}>
             <p className="tn-slogan" style={{ color: "#f4f4f5", fontWeight: "500", margin: "0 0 4px 0", letterSpacing: "-0.01em" }}>Hệ thống Hội nghị Cấp độ Doanh nghiệp.</p>
             <p className="tn-sub" style={{ color: "#a1a1aa", margin: 0 }}>Vận hành độc quyền bởi <b style={{color: "#ffffff"}}>Thanh Nguyen Group</b>.</p>
           </div>
@@ -146,7 +140,6 @@ export default function Page() {
         </Suspense>
       </main>
 
-      {/* FOOTER LUÔN NẰM DƯỚI ĐÁY */}
       <footer style={{ padding: "1.2rem 1rem", textAlign: "center", color: "#71717a", borderTop: "1px solid rgba(255,255,255,0.05)", background: "rgba(0,0,0,0.4)", backdropFilter: "blur(10px)", flexShrink: 0 }}>
         <p style={{ margin: "0 0 6px 0", fontSize: "0.85rem" }}>Bản quyền © 2026 <b style={{color:"#e4e4e7"}}>Thanh Nguyen Group</b>.</p>
         <p style={{ margin: 0, fontSize: "0.8rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", fontWeight: "500" }}>
@@ -155,25 +148,21 @@ export default function Page() {
         </p>
       </footer>
 
-      {/* CSS RESPONSIVE (PC & MOBILE) */}
+      {/* CSS TỰ ĐỘNG THÍCH ỨNG (MOBILE & PC) */}
       <style dangerouslySetInnerHTML={{__html: `
-        /* Hoạt ảnh */
         @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.3); } 100% { opacity: 1; transform: scale(1); } }
         input:focus, textarea:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2px rgba(239,68,68,0.25) !important; }
         
-        /* Kích thước mặc định (PC) */
         .tn-logo { width: 55px; height: 55px; font-size: 26px; }
         .tn-title { font-size: 46px; }
-        .tn-banner { max-width: 380px; margin-top: 1.5rem; }
         .tn-slogan { font-size: 1.15rem; }
         .tn-sub { font-size: 0.9rem; }
         .tn-action-box { padding: 2rem; }
 
-        /* Kích thước tối ưu cho Điện thoại (Mobile) */
+        /* Tối ưu riêng cho điện thoại */
         @media (max-width: 640px) {
             .tn-logo { width: 42px; height: 42px; font-size: 20px; border-radius: 10px; }
             .tn-title { font-size: 32px; }
-            .tn-banner { max-width: 300px; margin-top: 1rem; }
             .tn-slogan { font-size: 1rem; }
             .tn-sub { font-size: 0.8rem; }
             .tn-action-box { padding: 1.2rem; border-radius: 16px; }
@@ -205,7 +194,7 @@ overrideFile('app/layout.tsx', (content) => {
     return content.replace(/@livekitted/g, '@thanhnguyen');
 });
 
-// 2. CSS FIX LỖI TƯƠNG PHẢN NÚT RỜI PHÒNG VÀ MOBILE UI TRONG PHÒNG HỌP
+// 2. CSS FIX LỖI TƯƠNG PHẢN NÚT RỜI PHÒNG VÀ TỐI ƯU MOBILE
 const cssPath = 'styles/globals.css';
 if (fs.existsSync(cssPath)) {
     const customCSS = `
@@ -217,7 +206,7 @@ if (fs.existsSync(cssPath)) {
     padding: 1rem !important;
 }
 
-/* Fix nút Rời Phòng đỏ chót, icon/chữ trắng tinh */
+/* Fix nút Rời Phòng ĐỎ CHÓT - CHỮ/ICON TRẮNG */
 .lk-disconnect-button {
     background-color: #ef4444 !important;
     color: #ffffff !important;
@@ -242,7 +231,7 @@ if (fs.existsSync(cssPath)) {
     fs.appendFileSync(cssPath, customCSS, 'utf8');
 }
 
-// 3. Dịch Menu "Chuột Phải" / "Nhấn Giữ"
+// 3. Dịch Menu và Công cụ
 function translate(dir) {
     if (!fs.existsSync(dir)) return;
     fs.readdirSync(dir).forEach(file => {
