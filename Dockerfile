@@ -75,7 +75,7 @@ EOF
 
 RUN node rebrand.js
 
-// Xóa triệt để các file ảnh gốc để trình duyệt không tự động bắt link cache
+# Xóa triệt để các file ảnh gốc để trình duyệt không tự động bắt link cache (ĐÃ SỬA LỖI CÚ PHÁP TẠI ĐÂY)
 RUN rm -f public/images/livekit-meet-open-graph.png public/images/livekit-meet-home.svg public/favicon.ico || true
 
 # Cài đặt thư viện
