@@ -2,9 +2,12 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Cài đặt các công cụ cần thiết
-RUN apk add --no-cache git bash python3 make g++
+# Cài đặt các công cụ cần thiết, BAO GỒM CẢ GIT-LFS để tải ảnh thật
+RUN apk add --no-cache git bash python3 make g++ git-lfs
 RUN git clone https://github.com/livekit/meet.git .
+
+# Tải file ảnh gốc bằng LFS để không bị lỗi Webpack khi build
+RUN git lfs install && git lfs pull
 
 # --- CHIẾN DỊCH ĐẠI TU GIAO DIỆN & TỐI ƯU HÓA BẰNG SCRIPT ---
 # Tạo và chạy script quét/thay thế mã nguồn đa dòng
@@ -75,7 +78,7 @@ EOF
 
 RUN node rebrand.js
 
-# Xóa triệt để các file ảnh gốc để trình duyệt không tự động bắt link cache (ĐÃ SỬA LỖI CÚ PHÁP TẠI ĐÂY)
+# Xóa triệt để các file ảnh gốc
 RUN rm -f public/images/livekit-meet-open-graph.png public/images/livekit-meet-home.svg public/favicon.ico || true
 
 # Cài đặt thư viện
