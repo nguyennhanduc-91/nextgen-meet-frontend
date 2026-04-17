@@ -2,84 +2,75 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Cài đặt các công cụ cần thiết, BAO GỒM CẢ GIT-LFS để tải ảnh thật
+# Cài đặt các công cụ cần thiết, BAO GỒM CẢ GIT-LFS để kéo file ảnh gốc tránh lỗi Webpack
 RUN apk add --no-cache git bash python3 make g++ git-lfs
 RUN git clone https://github.com/livekit/meet.git .
 
-# Tải file ảnh gốc bằng LFS để không bị lỗi Webpack khi build
+# Kéo dữ liệu LFS
 RUN git lfs install && git lfs pull
 
-# --- CHIẾN DỊCH ĐẠI TU GIAO DIỆN & TỐI ƯU HÓA BẰNG SCRIPT ---
-# Tạo và chạy script quét/thay thế mã nguồn đa dòng
+# --- CHIẾN DỊCH ĐẠI TU GIAO DIỆN (PHƯƠNG PHÁP AN TOÀN) ---
+
+# 1. TẠO LOGO THANH NGUYEN ĐỂ GHI ĐÈ LÊN LOGO CŨ (Fix triệt để lỗi 404)
+RUN mkdir -p public/images && cat <<'SVG' > public/images/livekit-meet-home.svg
+<svg width="360" height="45" viewBox="0 0 360 45" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="5" width="35" height="35" rx="8" fill="#dc2626"/>
+  <text x="17.5" y="29" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#ffffff" text-anchor="middle">TN</text>
+  <text x="45" y="32" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#ffffff" letter-spacing="-0.5">NextGen <tspan fill="#dc2626">Meet</tspan></text>
+</svg>
+SVG
+
+# 2. SCRIPT DỊCH THUẬT VÀ THAY THẾ TỪ KHÓA BẢO TOÀN CẤU TRÚC
 RUN cat <<'EOF' > rebrand.js
 const fs = require('fs');
 const path = require('path');
 
-function replaceInFile(filePath, replacements) {
-  if (!fs.existsSync(filePath)) return;
-  let content = fs.readFileSync(filePath, 'utf-8');
-  let originalContent = content;
-  replacements.forEach(([regex, replace]) => {
-    content = content.replace(regex, replace);
-  });
-  if (content !== originalContent) {
-    fs.writeFileSync(filePath, content, 'utf-8');
-  }
-}
-
-// 1. Dọn sạch trang chủ (page.tsx)
-const pagePath = 'src/app/page.tsx';
-if (fs.existsSync(pagePath)) {
-  replaceInFile(pagePath, [
-    // Xóa thẻ ảnh chứa logo Livekit và thay bằng Logo Thanh Nguyen Group thiết kế bằng CSS hiện đại
-    [/<img[^>]*livekit-meet-home\.svg[^>]*\/?>/g, '<h1 style={{ fontSize: "3rem", fontWeight: "800", color: "#ffffff", marginBottom: "0.5rem", display: "flex", alignItems: "center", justifyContent: "center", letterSpacing: "-0.05em" }}><span style={{ color: "#ffffff", backgroundColor: "#dc2626", padding: "6px 14px", borderRadius: "10px", marginRight: "12px", fontSize: "2.5rem", boxShadow: "0 4px 14px 0 rgba(220, 38, 38, 0.39)" }}>TN</span>NextGen Meet</h1>'],
-    // Sửa câu Slogan
-    [/<h2[^>]*>[\s\S]*?<\/h2>/g, '<h2 style={{ fontSize: "1.25rem", color: "#a1a1aa", fontWeight: "400", marginTop: "0.5rem" }}>Hệ thống hội nghị trực tuyến cao cấp thuộc hệ sinh thái <b style={{color:"#ffffff"}}>Thanh Nguyen Group</b>.</h2>'],
-    // Sửa phần bản quyền ở Footer
-    [/Hosted on[\s\S]*?GitHub<\/a>\./g, 'Bản quyền © 2026 thuộc về Thanh Nguyen Group. Nền tảng được tối ưu hóa cho mạng lưới nội bộ.'],
-    // Việt hóa các nút bấm
-    [/Try LiveKit Meet for free with our live demo project\./g, 'Tạo hoặc tham gia phòng họp trực tuyến bảo mật ngay.'],
-    [/Try NextGen Meet for free with our live demo project\./gi, 'Tạo hoặc tham gia phòng họp trực tuyến bảo mật ngay.'],
-    [/Demo/g, 'Phòng ngẫu nhiên'],
-    [/Custom/g, 'Phòng có sẵn'],
-    [/Start Meeting/g, 'Bắt đầu cuộc họp'],
-    [/Enable end-to-end encryption/g, 'Kích hoạt mã hóa bảo mật đầu cuối (E2EE)']
-  ]);
-}
-
-// 2. Dọn sạch Meta SEO và cấu hình (layout.tsx)
-const layoutPath = 'src/app/layout.tsx';
-if (fs.existsSync(layoutPath)) {
-  replaceInFile(layoutPath, [
-    [/LiveKit Meet/g, 'NextGen Meet'],
-    [/LiveKit is an open source WebRTC project[^"']*/g, 'Hệ thống họp trực tuyến bảo mật chất lượng cao của Thanh Nguyen Group.'],
-    [/meet\.livekit\.io/g, 'meet.thanhnguyen.group'],
-    [/@livekitted/g, '@thanhnguyen']
-  ]);
-}
-
-// 3. Quét toàn bộ components để thay thế các chữ LiveKit Meet còn sót
-function walkAndReplace(dir) {
+function walk(dir) {
   if (!fs.existsSync(dir)) return;
   const files = fs.readdirSync(dir);
   for (const file of files) {
     const fullPath = path.join(dir, file);
     if (fs.statSync(fullPath).isDirectory()) {
-      walkAndReplace(fullPath);
-    } else if (fullPath.endsWith('.tsx') || fullPath.endsWith('.ts')) {
-      replaceInFile(fullPath, [
-        [/LiveKit Meet/gi, 'NextGen Meet']
-      ]);
+      if (!['node_modules', '.git', '.next', 'public'].includes(file)) {
+        walk(fullPath);
+      }
+    } else if (fullPath.match(/\.(tsx|ts|jsx|js|html)$/)) {
+      let content = fs.readFileSync(fullPath, 'utf-8');
+      let orig = content;
+
+      // Đổi tên thương hiệu
+      content = content.replace(/LiveKit Meet/g, 'NextGen Meet');
+      
+      // Dịch word-by-word các câu text trên trang chủ
+      content = content.replace(/Open source video conferencing app built on/g, 'Hệ thống hội nghị trực tuyến bảo mật cao của');
+      content = content.replace(/LiveKit Components/g, 'Thanh Nguyen');
+      content = content.replace(/LiveKit Cloud/g, 'Group');
+      content = content.replace(/and Next\.js\./g, '');
+      
+      // Dịch các Nút bấm & Nhãn
+      content = content.replace(/Try NextGen Meet for free with our live demo project\./g, 'Tạo hoặc tham gia phòng họp trực tuyến bảo mật ngay.');
+      content = content.replace(/>Demo</g, '>Phòng ngẫu nhiên<');
+      content = content.replace(/"Demo"/g, '"Phòng ngẫu nhiên"');
+      content = content.replace(/>Custom</g, '>Phòng có sẵn<');
+      content = content.replace(/"Custom"/g, '"Phòng có sẵn"');
+      content = content.replace(/>Start Meeting</g, '>Bắt đầu cuộc họp<');
+      content = content.replace(/"Start Meeting"/g, '"Bắt đầu cuộc họp"');
+      content = content.replace(/Enable end-to-end encryption/g, 'Bật mã hóa đầu cuối (E2EE)');
+      
+      // Chỉnh sửa Footer
+      content = content.replace(/Hosted on/g, 'Bản quyền © 2026 thuộc về');
+      content = content.replace(/\. Source code on/g, '');
+      content = content.replace(/>GitHub</g, '></');
+
+      if (content !== orig) {
+        fs.writeFileSync(fullPath, content, 'utf-8');
+      }
     }
   }
 }
-walkAndReplace('src');
+walk('.');
 EOF
-
 RUN node rebrand.js
-
-# Xóa triệt để các file ảnh gốc
-RUN rm -f public/images/livekit-meet-open-graph.png public/images/livekit-meet-home.svg public/favicon.ico || true
 
 # Cài đặt thư viện
 RUN corepack enable && corepack prepare pnpm@latest --activate
