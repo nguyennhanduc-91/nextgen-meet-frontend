@@ -9,18 +9,14 @@ RUN git clone https://github.com/livekit/meet.git .
 # Kéo dữ liệu LFS
 RUN git lfs install && git lfs pull
 
-# --- CHIẾN DỊCH ĐẠI TU GIAO DIỆN (PHƯƠNG PHÁP AN TOÀN) ---
+# --- CHIẾN DỊCH ĐẠI TU GIAO DIỆN (PHIÊN BẢN QUÉT ĐỆ QUY TẬN GỐC) ---
 
-# 1. TẠO LOGO THANH NGUYEN ĐỂ GHI ĐÈ LÊN LOGO CŨ (Fix triệt để lỗi 404)
-RUN mkdir -p public/images && cat <<'SVG' > public/images/livekit-meet-home.svg
-<svg width="360" height="45" viewBox="0 0 360 45" xmlns="http://www.w3.org/2000/svg">
-  <rect x="0" y="5" width="35" height="35" rx="8" fill="#dc2626"/>
-  <text x="17.5" y="29" font-family="Arial, sans-serif" font-size="18" font-weight="bold" fill="#ffffff" text-anchor="middle">TN</text>
-  <text x="45" y="32" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#ffffff" letter-spacing="-0.5">NextGen <tspan fill="#dc2626">Meet</tspan></text>
-</svg>
-SVG
+# 1. GHI ĐÈ CÁC FILE ẢNH BẰNG SVG TRỐNG ĐỂ FIX TRIỆT ĐỂ LỖI 404 SERVICE WORKER
+RUN mkdir -p public/images && \
+    echo '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>' > public/images/livekit-meet-home.svg && \
+    echo '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>' > public/favicon.ico
 
-# 2. SCRIPT DỊCH THUẬT VÀ THAY THẾ TỪ KHÓA BẢO TOÀN CẤU TRÚC
+# 2. SCRIPT QUÉT ĐỆ QUY TOÀN BỘ PROJECT VÀ THAY THẾ MẠNH TAY
 RUN cat <<'EOF' > rebrand.js
 const fs = require('fs');
 const path = require('path');
@@ -34,33 +30,48 @@ function walk(dir) {
       if (!['node_modules', '.git', '.next', 'public'].includes(file)) {
         walk(fullPath);
       }
-    } else if (fullPath.match(/\.(tsx|ts|jsx|js|html)$/)) {
+    } else if (fullPath.match(/\.(tsx|ts|jsx|js|html|json)$/)) {
       let content = fs.readFileSync(fullPath, 'utf-8');
       let orig = content;
 
-      // Đổi tên thương hiệu
-      content = content.replace(/LiveKit Meet/g, 'NextGen Meet');
+      // Xóa triệt để Logo hình ảnh cũ và chèn HTML Logo Thanh Nguyen mới vào JSX
+      if (fullPath.match(/\.(tsx|jsx)$/)) {
+        content = content.replace(/<(?:img|Image)[^>]*livekit-meet-home\.svg[^>]*\/?>/gi, '<div style={{ display: "flex", alignItems: "center", gap: "12px", justifyContent: "center", paddingBottom: "1.5rem" }}><div style={{ width: "45px", height: "45px", backgroundColor: "#dc2626", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "bold", fontSize: "22px", fontFamily: "sans-serif"}}>TN</div><span style={{ fontSize: "34px", fontWeight: "bold", color: "white", letterSpacing: "-0.05em", fontFamily: "sans-serif" }}>NextGen <span style={{ color: "#dc2626" }}>Meet</span></span></div>');
+      }
+
+      // Tiêu diệt toàn bộ thẻ <a> chứa LiveKit
+      content = content.replace(/<a[^>]*href=["'][^"']*github\.com\/livekit[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, '<b style={{color: "#ffffff"}}>Thanh Nguyen</b>');
+      content = content.replace(/<a[^>]*href=["'][^"']*livekit\.io[^"']*["'][^>]*>[\s\S]*?<\/a>/gi, '<b style={{color: "#ffffff"}}>Group</b>');
+
+      // Đổi tên thương hiệu (xử lý các ký tự khoảng trắng đặc biệt &nbsp;)
+      content = content.replace(/LiveKit(?:&nbsp;|\s|{"\\u00A0"}|\\u00A0)*Meet/gi, 'NextGen Meet');
+      content = content.replace(/LiveKit(?:&nbsp;|\s|{"\\u00A0"}|\\u00A0)*Components/gi, 'Thanh Nguyen');
+      content = content.replace(/LiveKit(?:&nbsp;|\s|{"\\u00A0"}|\\u00A0)*Cloud/gi, 'Group');
+      content = content.replace(/LiveKit(?:&nbsp;|\s|{"\\u00A0"}|\\u00A0)*Server/gi, 'Máy chủ TN');
+
+      // Dịch từng đoạn Text chính xác
+      content = content.replace(/Open source video conferencing app built on/gi, 'Hệ thống hội nghị trực tuyến bảo mật cao của');
+      content = content.replace(/and Next\.js\./gi, '');
       
-      // Dịch word-by-word các câu text trên trang chủ
-      content = content.replace(/Open source video conferencing app built on/g, 'Hệ thống hội nghị trực tuyến bảo mật cao của');
-      content = content.replace(/LiveKit Components/g, 'Thanh Nguyen');
-      content = content.replace(/LiveKit Cloud/g, 'Group');
-      content = content.replace(/and Next\.js\./g, '');
-      
-      // Dịch các Nút bấm & Nhãn
-      content = content.replace(/Try NextGen Meet for free with our live demo project\./g, 'Tạo hoặc tham gia phòng họp trực tuyến bảo mật ngay.');
-      content = content.replace(/>Demo</g, '>Phòng ngẫu nhiên<');
-      content = content.replace(/"Demo"/g, '"Phòng ngẫu nhiên"');
-      content = content.replace(/>Custom</g, '>Phòng có sẵn<');
-      content = content.replace(/"Custom"/g, '"Phòng có sẵn"');
-      content = content.replace(/>Start Meeting</g, '>Bắt đầu cuộc họp<');
-      content = content.replace(/"Start Meeting"/g, '"Bắt đầu cuộc họp"');
-      content = content.replace(/Enable end-to-end encryption/g, 'Bật mã hóa đầu cuối (E2EE)');
-      
-      // Chỉnh sửa Footer
-      content = content.replace(/Hosted on/g, 'Bản quyền © 2026 thuộc về');
-      content = content.replace(/\. Source code on/g, '');
-      content = content.replace(/>GitHub</g, '></');
+      content = content.replace(/Try NextGen Meet for free with our live demo project\./gi, 'Tạo hoặc tham gia phòng họp trực tuyến bảo mật ngay.');
+      content = content.replace(/Connect NextGen Meet with a custom server using Group or Máy chủ TN\./gi, 'Kết nối mạng nội bộ an toàn bằng hệ thống máy chủ mã hóa của Thanh Nguyen Group.');
+
+      // Dịch các Nút bấm & Nhãn UI
+      content = content.replace(/>\s*Demo\s*</gi, '>Phòng ngẫu nhiên<');
+      content = content.replace(/"Demo"/gi, '"Phòng ngẫu nhiên"');
+      content = content.replace(/>\s*Custom\s*</gi, '>Phòng có sẵn<');
+      content = content.replace(/"Custom"/gi, '"Phòng có sẵn"');
+      content = content.replace(/>\s*Start Meeting\s*</gi, '>Bắt đầu cuộc họp<');
+      content = content.replace(/"Start Meeting"/gi, '"Bắt đầu cuộc họp"');
+      content = content.replace(/Enable end-to-end encryption/gi, 'Bật mã hóa đầu cuối (E2EE)');
+      content = content.replace(/>\s*Connect\s*</gi, '>Kết nối<');
+
+      // Dịch Footer
+      content = content.replace(/Hosted on/gi, 'Bản quyền © 2026 thuộc về');
+      content = content.replace(/\. Source code on/gi, '');
+
+      // Chỉnh lại ngữ pháp (Thanh Nguyen, Group -> Thanh Nguyen và Group)
+      content = content.replace(/Thanh Nguyen<\/b>\s*,\s*<b/gi, 'Thanh Nguyen</b> và <b');
 
       if (content !== orig) {
         fs.writeFileSync(fullPath, content, 'utf-8');
