@@ -1,13 +1,13 @@
-# Nâng cấp Node 20
+# Sử dụng Node 20
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# 1. Cài đặt công cụ và LFS
+# 1. Cài đặt công cụ
 RUN apk add --no-cache git bash python3 make g++ git-lfs wget
 RUN git clone https://github.com/livekit/meet.git .
 RUN git lfs install && git lfs pull
 
-# 2. Tải ảnh thương hiệu từ GitHub (Làm ảnh SEO và đưa vào giao diện)
+# 2. Tải ảnh SEO Zalo (Chỉ dùng cho SEO, không hiện trên UI)
 RUN mkdir -p public/images && \
     wget -qO public/images/livekit-meet-open-graph.png "https://raw.githubusercontent.com/nguyennhanduc-91/nextgen-meet-frontend/main/ivekit-meet-open-graph.png" || true && \
     echo '<svg width="32" height="32" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#dc2626"/><text x="50%" y="50%" font-family="sans-serif" font-size="16" font-weight="bold" fill="#fff" text-anchor="middle" dominant-baseline="central">TN</text></svg>' > public/favicon.ico && \
@@ -18,7 +18,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 RUN pnpm install
 
 # =================================================================
-# 4. VIẾT LẠI LÕI API: FIX LỖI 401 JWT TOKEN + ÉP QUYỀN QUẢN TRỊ 
+# 4. VIẾT LẠI HOÀN TOÀN FILE API: ĐẢM BẢO QUYỀN ADMIN 100%
 # =================================================================
 RUN cat <<'EOF' > app/api/connection-details/route.ts
 import { getLiveKitURL } from '@/lib/getLiveKitURL';
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     const grant: VideoGrant = {
       roomJoin: true,
       room: roomName,
-      roomAdmin: true, // QUYỀN QUẢN TRỊ ADMIN TỐI CAO ĐƯỢC ÉP BUỘC Ở ĐÂY
+      roomAdmin: true, // QUYỀN QUẢN TRỊ VIÊN ĐƯỢC CẤP Ở ĐÂY
       canPublish: true,
       canPublishData: true,
       canSubscribe: true,
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 
     const at = new AccessToken(API_KEY, API_SECRET, { identity, name: participantName });
     at.addGrant(grant);
-    const jwtToken = await at.toJwt(); // FIX LỖI 401 BẰNG JWT CHUẨN
+    const jwtToken = await at.toJwt();
 
     return NextResponse.json({
       serverUrl: region ? getLiveKitURL(LIVEKIT_URL, region) : LIVEKIT_URL,
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
 EOF
 
 # =================================================================
-# 5. LỘT XÁC GIAO DIỆN TRANG CHỦ (TÍCH HỢP ẢNH, ICON, HIỆU ỨNG GLASS)
+# 5. VIẾT LẠI HOÀN TOÀN FILE TRANG CHỦ: BỎ ẢNH THỪA, LÀM MƯỢT UI
 # =================================================================
 RUN cat <<'EOF' > app/page.tsx
 'use client';
@@ -86,7 +86,7 @@ function Tabs() {
   };
 
   return (
-    <div style={{ backgroundColor: "rgba(24, 24, 27, 0.75)", backdropFilter: "blur(24px)", padding: "2.5rem", borderRadius: "24px", border: "1px solid rgba(255,255,255,0.08)", width: "100%", maxWidth: "500px", boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.6)" }}>
+    <div style={{ backgroundColor: "rgba(24, 24, 27, 0.75)", backdropFilter: "blur(24px)", padding: "2.5rem", borderRadius: "24px", border: "1px solid rgba(255,255,255,0.08)", width: "100%", maxWidth: "480px", boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.6)", marginTop: "2rem" }}>
       <div style={{ display: "flex", gap: "12px", marginBottom: "2rem", backgroundColor: "rgba(0,0,0,0.3)", padding: "6px", borderRadius: "16px" }}>
         <button onClick={() => router.push('/?tab=demo')} style={{ flex: 1, padding: "12px", borderRadius: "12px", fontWeight: "bold", border: "none", cursor: "pointer", transition: "all 0.3s", backgroundColor: tabIndex === 0 ? "#ef4444" : "transparent", color: tabIndex === 0 ? "white" : "#a1a1aa", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
           <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14v-4z"></path><rect x="3" y="6" width="12" height="12" rx="2"></rect></svg> Họp Nhanh
@@ -122,25 +122,20 @@ export default function Page() {
     <div style={{ minHeight: "100vh", backgroundColor: "#09090b", backgroundImage: "radial-gradient(circle at 50% 0%, rgba(220, 38, 38, 0.15), transparent 60%)", display: "flex", flexDirection: "column", fontFamily: "system-ui, -apple-system, sans-serif" }}>
       <main style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "2rem", zIndex: 1 }}>
         
-        {/* HEADER BRANDING CÓ ICON 3D */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1.5rem", marginBottom: "2.5rem", textAlign: "center" }}>
+        {/* HEADER BRANDING - TỐI GIẢN CHUYÊN NGHIỆP, BỎ ẢNH */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem", textAlign: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "16px", justifyContent: "center" }}>
             <div style={{ background: "linear-gradient(135deg, #ef4444 0%, #991b1b 100%)", width: "64px", height: "64px", borderRadius: "18px", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "900", fontSize: "30px", boxShadow: "0 15px 35px -5px rgba(220, 38, 38, 0.5)", border: "1px solid rgba(255,255,255,0.2)" }}>TN</div>
             <h1 style={{ fontSize: "52px", fontWeight: "900", color: "white", margin: 0, letterSpacing: "-0.05em" }}>NextGen <span style={{ color: "#ef4444" }}>Meet</span></h1>
           </div>
-          
-          {/* NHÚNG ẢNH TỪ GITHUB LÀM BANNER CHÍNH */}
-          <div style={{ width: "100%", maxWidth: "650px", position: "relative", borderRadius: "20px", padding: "4px", background: "linear-gradient(180deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 100%)", marginTop: "1rem" }}>
-              <img src="/images/livekit-meet-open-graph.png" alt="Thanh Nguyen Group Banner" style={{ width: "100%", borderRadius: "16px", boxShadow: "0 20px 40px -10px rgba(0,0,0,0.6)", display: "block" }} />
-          </div>
 
-          <div style={{ maxWidth: "600px", marginTop: "1.5rem" }}>
-            <p style={{ color: "#f4f4f5", fontSize: "1.3rem", fontWeight: "500", margin: "0 0 8px 0", letterSpacing: "-0.01em" }}>Hệ thống Hội nghị Trực tuyến Cấp độ Doanh nghiệp.</p>
+          <div style={{ maxWidth: "600px", marginTop: "0.5rem" }}>
+            <p style={{ color: "#f4f4f5", fontSize: "1.3rem", fontWeight: "500", margin: "0 0 5px 0", letterSpacing: "-0.01em" }}>Hệ thống Hội nghị Trực tuyến Cấp độ Doanh nghiệp.</p>
             <p style={{ color: "#a1a1aa", fontSize: "1rem", margin: 0 }}>Phát triển và vận hành độc quyền bởi <b style={{color: "#ffffff"}}>Thanh Nguyen Group</b>.</p>
           </div>
         </div>
 
-        <Suspense fallback={<div style={{color:"white"}}>Đang tải hệ thống...</div>}>
+        <Suspense fallback={<div style={{color:"white", marginTop: "2rem"}}>Đang tải hệ thống...</div>}>
           <Tabs />
         </Suspense>
       </main>
@@ -163,83 +158,103 @@ export default function Page() {
 EOF
 
 # =================================================================
-# 6. BƠM CSS CAO CẤP VÀO PHÒNG HỌP & DỊCH THUẬT SÂU
+# 6. BƠM CSS CAO CẤP FIX LỖI MÀU NÚT & DỊCH THUẬT
 # =================================================================
 RUN cat <<'EOF' > post_build.js
 const fs = require('fs');
 const path = require('path');
 
-// 1. Tùy chỉnh SEO
-const layoutPath = 'app/layout.tsx';
-if (fs.existsSync(layoutPath)) {
-    let content = fs.readFileSync(layoutPath, 'utf8');
-    content = content.replace(/LiveKit Meet \| Conference app build with LiveKit open source/g, 'Hệ thống Họp trực tuyến | Thanh Nguyen Group');
-    content = content.replace(/LiveKit is an open source WebRTC project[^"']*/g, 'Nền tảng họp trực tuyến bảo mật cấp độ doanh nghiệp (E2EE) được phát triển và vận hành độc quyền bởi Thanh Nguyen Group.');
-    fs.writeFileSync(layoutPath, content, 'utf8');
+function overrideFile(filePath, replacerCallback) {
+    if (!fs.existsSync(filePath)) return;
+    const orig = fs.readFileSync(filePath, 'utf8');
+    const modified = replacerCallback(orig);
+    if (orig !== modified) fs.writeFileSync(filePath, modified, 'utf8');
 }
 
-// 2. Bơm giao diện kính mờ (Glassmorphism) vào lõi
+// 1. Tùy chỉnh SEO
+overrideFile('app/layout.tsx', (content) => {
+    content = content.replace(/LiveKit Meet \| Conference app build with LiveKit open source/g, 'Hệ thống Họp trực tuyến | Thanh Nguyen Group');
+    content = content.replace(/LiveKit is an open source WebRTC project[^"']*/g, 'Nền tảng họp trực tuyến bảo mật cấp độ doanh nghiệp (E2EE) được phát triển và vận hành độc quyền bởi Thanh Nguyen Group.');
+    content = content.replace(/@livekitted/g, '@thanhnguyen');
+    return content;
+});
+
+// 2. CSS FIX LỖI TƯƠNG PHẢN NÚT RỜI PHÒNG VÀ LÀM ĐẸP UI
 const cssPath = 'styles/globals.css';
 if (fs.existsSync(cssPath)) {
     const customCSS = `
-/* PREMIUM ROOM UI */
+/* --- PREMIUM ROOM UI --- */
 .lk-control-bar {
-    background: rgba(24, 24, 27, 0.7) !important;
+    background: rgba(24, 24, 27, 0.8) !important;
     backdrop-filter: blur(20px) saturate(150%) !important;
     border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
     box-shadow: 0 -10px 40px rgba(0,0,0,0.5) !important;
     padding: 1.2rem !important;
 }
+
+/* Nút bấm chung */
 .lk-button {
-    border-radius: 14px !important;
+    border-radius: 12px !important;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 .lk-button:hover {
-    transform: translateY(-3px) scale(1.05) !important;
-    box-shadow: 0 10px 20px rgba(0,0,0,0.3) !important;
-    background-color: #3f3f46 !important;
+    transform: translateY(-2px) !important;
+    background-color: rgba(255, 255, 255, 0.15) !important;
 }
+
+/* FIX TRIỆT ĐỂ NÚT RỜI PHÒNG: Nền Đỏ - Chữ/Icon Trắng Tinh */
 .lk-disconnect-button {
     background-color: #ef4444 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4) !important;
 }
 .lk-disconnect-button:hover {
     background-color: #dc2626 !important;
 }
+/* Ép Icon SVG trong nút Rời Phòng phải màu trắng */
+.lk-disconnect-button svg, 
+.lk-disconnect-button * {
+    color: #ffffff !important;
+    fill: #ffffff !important;
+}
+
+/* Khung Video */
 .lk-participant-tile {
-    border-radius: 20px !important;
+    border-radius: 16px !important;
     border: 1px solid rgba(255,255,255,0.08) !important;
-    box-shadow: 0 15px 35px rgba(0,0,0,0.3) !important;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
     overflow: hidden !important;
 }
 `;
     fs.appendFileSync(cssPath, customCSS, 'utf8');
 }
 
-// 3. Dịch Menu "Chuột Phải / Nhấn Giữ"
+// 3. Dịch Menu và Công cụ
 function translate(dir) {
     if (!fs.existsSync(dir)) return;
     fs.readdirSync(dir).forEach(file => {
         const fp = path.join(dir, file);
         if (fs.statSync(fp).isDirectory()) translate(fp);
         else if (fp.endsWith('.js') || fp.endsWith('.mjs')) {
-            let c = fs.readFileSync(fp, 'utf8');
-            let orig = c;
-            const dict = [
-                ['"Microphone"', '"Micro"'], ['"Camera"', '"Máy ảnh"'],
-                ['"Share screen"', '"Chia sẻ màn hình"'], ['"Stop sharing"', '"Dừng chia sẻ"'],
-                ['"Chat"', '"Trò chuyện"'], ['"Leave"', '"Rời phòng"'],
-                ['"Disable camera"', '"Tắt máy ảnh"'], ['"Enable camera"', '"Bật máy ảnh"'],
-                ['"Mute"', '"Tắt mic"'], ['"Unmute"', '"Bật mic"'],
-                ['"Remove from room"', '"Mời ra khỏi phòng"'],
-                ['"Select microphone"', '"Chọn Micro"'], ['"Select camera"', '"Chọn Máy ảnh"'],
-                ['"Default"', '"Mặc định"']
-            ];
-            dict.forEach(([e, v]) => c = c.split(e).join(v));
-            if (c !== orig) fs.writeFileSync(fp, c, 'utf8');
+            overrideFile(fp, (c) => {
+                const dict = [
+                    ['"Microphone"', '"Micro"'], ['"Camera"', '"Máy ảnh"'],
+                    ['"Share screen"', '"Chia sẻ màn hình"'], ['"Stop sharing"', '"Dừng chia sẻ"'],
+                    ['"Chat"', '"Trò chuyện"'], ['"Leave"', '"Rời phòng"'],
+                    ['"Disable camera"', '"Tắt máy ảnh"'], ['"Enable camera"', '"Bật máy ảnh"'],
+                    ['"Mute"', '"Tắt mic"'], ['"Unmute"', '"Bật mic"'],
+                    ['"Remove from room"', '"Mời ra khỏi phòng"'],
+                    ['"Select microphone"', '"Chọn Micro"'], ['"Select camera"', '"Chọn Máy ảnh"'],
+                    ['"Default"', '"Mặc định"']
+                ];
+                dict.forEach(([e, v]) => c = c.split(e).join(v));
+                return c;
+            });
         }
     });
 }
 translate('node_modules/@livekit/components-react/dist');
+translate('node_modules/@livekit/components-core/dist');
 EOF
 RUN node post_build.js
 
