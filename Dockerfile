@@ -8,12 +8,13 @@ RUN git clone https://github.com/livekit/meet.git .
 RUN git lfs install && git lfs pull
 
 # =================================================================
-# 2. DIỆT TẬN GỐC ẢNH SEO CỦA HÃNG TRONG MỌI THƯ MỤC NEXT.JS
+# 2. XÓA SẠCH MỌI FILE ẢNH SEO RÁC CỦA HÃNG TRÊN TOÀN BỘ DỰ ÁN
 # =================================================================
 RUN find . -name "*open-graph*" -delete && \
     find . -name "opengraph-image*" -delete && \
     find . -name "twitter-image*" -delete && \
     find . -name "apple-touch*" -delete && \
+    mkdir -p public/images && \
     echo '<svg width="32" height="32" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#dc2626"/><text x="50%" y="50%" font-family="sans-serif" font-size="16" font-weight="bold" fill="#fff" text-anchor="middle" dominant-baseline="central">TN</text></svg>' > public/favicon.ico && \
     echo '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>' > public/images/livekit-meet-home.svg
 
@@ -71,7 +72,7 @@ export async function GET(request: NextRequest) {
 EOF
 
 # =================================================================
-# 5. GIAO DIỆN TRANG CHỦ: KHÔNG ẢNH OPEN GRAPH, GỌN GÀNG
+# 5. GIAO DIỆN TRANG CHỦ: KHÔNG ẢNH OPEN GRAPH, GỌN GÀNG, RESPONSIVE
 # =================================================================
 RUN cat <<'EOF' > app/page.tsx
 'use client';
@@ -124,6 +125,7 @@ export default function Page() {
   return (
     <div style={{ minHeight: "100dvh", backgroundColor: "#09090b", backgroundImage: "radial-gradient(circle at 50% 0%, rgba(220, 38, 38, 0.12), transparent 50%)", display: "flex", flexDirection: "column", fontFamily: "system-ui, -apple-system, sans-serif" }}>
       <main style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "1rem", zIndex: 1, overflowY: "auto" }}>
+        
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", width: "100%" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", justifyContent: "center" }}>
             <div className="tn-logo" style={{ background: "linear-gradient(135deg, #ef4444 0%, #991b1b 100%)", borderRadius: "14px", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "900", boxShadow: "0 10px 25px -5px rgba(220, 38, 38, 0.5)", border: "1px solid rgba(255,255,255,0.2)" }}>TN</div>
@@ -134,10 +136,12 @@ export default function Page() {
             <p className="tn-sub" style={{ color: "#a1a1aa", margin: 0 }}>Vận hành độc quyền bởi <b style={{color: "#ffffff"}}>Thanh Nguyen Group</b>.</p>
           </div>
         </div>
+
         <Suspense fallback={<div style={{color:"white"}}>Đang tải...</div>}>
           <Tabs />
         </Suspense>
       </main>
+
       <footer style={{ padding: "1.2rem 1rem", textAlign: "center", color: "#71717a", borderTop: "1px solid rgba(255,255,255,0.05)", background: "rgba(0,0,0,0.4)", backdropFilter: "blur(10px)", flexShrink: 0 }}>
         <p style={{ margin: "0 0 6px 0", fontSize: "0.85rem" }}>Bản quyền © 2026 <b style={{color:"#e4e4e7"}}>Thanh Nguyen Group</b>.</p>
         <p style={{ margin: 0, fontSize: "0.8rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", fontWeight: "500" }}>
@@ -145,6 +149,7 @@ export default function Page() {
             Bảo mật E2EE tuyệt đối
         </p>
       </footer>
+
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.3); } 100% { opacity: 1; transform: scale(1); } }
         input:focus, textarea:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2px rgba(239,68,68,0.25) !important; }
@@ -167,7 +172,7 @@ export default function Page() {
 EOF
 
 # =================================================================
-# 6. TIÊM MÃ SEO TUYỆT ĐỐI VÀ CSS BO GÓC 5PX VÀO LÕI HỆ THỐNG
+# 6. NHỔ BẬT GỐC CẤU HÌNH SEO CŨ, ÉP MÃ SEO MỚI & CSS PHÒNG HỌP 5PX
 # =================================================================
 RUN cat <<'EOF' > post_build.js
 const fs = require('fs');
@@ -180,18 +185,49 @@ function overrideFile(filePath, replacerCallback) {
     if (orig !== modified) fs.writeFileSync(filePath, modified, 'utf8');
 }
 
-// 1. TIÊM LINK ẢNH GITHUB TRỰC TIẾP VÀO METADATA (ĐÁNH BẠI CACHE ZALO)
+// 1. DIỆT CẤU HÌNH METADATA CŨ VÀ THAY BẰNG CẤU HÌNH TUYỆT ĐỐI CỦA THANH NGUYEN
 overrideFile('app/layout.tsx', (content) => {
-    content = content.replace(/LiveKit Meet \| Conference app build with LiveKit open source/g, 'Hệ thống Họp trực tuyến | Thanh Nguyen Group');
-    content = content.replace(/LiveKit is an open source WebRTC project[^"']*/g, 'Nền tảng họp trực tuyến bảo mật cấp độ doanh nghiệp (E2EE).');
-    content = content.replace(/@livekitted/g, '@thanhnguyen');
+    // Xóa bỏ hoàn toàn url base lỗi của hãng
+    content = content.replace(/https:\/\/meet\.livekit\.io/g, 'https://meet.thanhnguyen.group');
     
-    // Ghi đè url ảnh mặc định của hãng thành link GitHub tuyệt đối của bạn
-    content = content.replace(/\/images\/livekit-meet-open-graph\.png/g, 'https://raw.githubusercontent.com/nguyennhanduc-91/nextgen-meet-frontend/main/ivekit-meet-open-graph.png');
+    const newMetadata = `
+export const metadata = {
+  metadataBase: new URL('https://meet.thanhnguyen.group'),
+  title: {
+    default: 'Hệ thống Họp trực tuyến | Thanh Nguyen Group',
+    template: '%s | Thanh Nguyen Group',
+  },
+  description: 'Nền tảng họp trực tuyến bảo mật cấp độ doanh nghiệp (E2EE).',
+  openGraph: {
+    title: 'Hệ thống Họp trực tuyến | Thanh Nguyen Group',
+    description: 'Nền tảng họp trực tuyến bảo mật cấp độ doanh nghiệp.',
+    url: 'https://meet.thanhnguyen.group',
+    siteName: 'Thanh Nguyen Meet',
+    images: [
+      {
+        url: 'https://raw.githubusercontent.com/nguyennhanduc-91/nextgen-meet-frontend/main/ivekit-meet-open-graph.png',
+        width: 1200,
+        height: 630,
+        alt: 'Thanh Nguyen Group Banner',
+      },
+    ],
+    locale: 'vi_VN',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Hệ thống Họp trực tuyến | Thanh Nguyen Group',
+    description: 'Nền tảng họp trực tuyến bảo mật.',
+    images: ['https://raw.githubusercontent.com/nguyennhanduc-91/nextgen-meet-frontend/main/ivekit-meet-open-graph.png'],
+  },
+};
+`;
+    // Tìm cụm "export const metadata ... = { ... };" và đè bằng cụm mới
+    content = content.replace(/export const metadata[^=]*= \{[\s\S]*?\};/, newMetadata.trim());
     return content;
 });
 
-// 2. CSS UI PHÒNG HỌP: BO GÓC 5PX, CÁCH NHAU 5PX
+// 2. CSS UI PHÒNG HỌP: BO GÓC 5PX, CÁCH NHAU 5PX CHUẨN XÁC
 const cssPath = 'styles/globals.css';
 if (fs.existsSync(cssPath)) {
     const customCSS = `
@@ -246,7 +282,7 @@ if (fs.existsSync(cssPath)) {
     fs.appendFileSync(cssPath, customCSS, 'utf8');
 }
 
-// 3. DỊCH THUẬT MENU
+// 3. Dịch Menu
 function translate(dir) {
     if (!fs.existsSync(dir)) return;
     fs.readdirSync(dir).forEach(file => {
