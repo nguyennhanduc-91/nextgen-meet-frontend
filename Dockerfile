@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
 EOF
 
 # =================================================================
-# 5. GIAO DIỆN TRANG CHỦ: KHÔNG ẢNH OPEN GRAPH, GỌN GÀNG, RESPONSIVE
+# 5. GIAO DIỆN TRANG CHỦ: PHỤC HỒI CHECKBOX BẢO MẬT E2EE
 # =================================================================
 RUN cat <<'EOF' > app/page.tsx
 'use client';
@@ -103,7 +103,12 @@ function Tabs() {
       <div>
         {tabIndex === 0 ? (
           <div style={{ textAlign: "center" }}>
-            <p style={{ margin: "0 0 1.2rem 0", color: "#d4d4d8", fontSize: "0.95rem" }}>Khởi tạo phòng họp bảo mật mã hóa E2EE.</p>
+            {/* ĐÃ PHỤC HỒI NÚT CHECKBOX E2EE Ở ĐÂY */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", margin: "0 0 1.2rem 0" }}>
+              <input type="checkbox" id="e2ee-toggle" checked={e2ee} onChange={(e) => setE2ee(e.target.checked)} style={{ width: "18px", height: "18px", accentColor: "#ef4444", cursor: "pointer" }} />
+              <label htmlFor="e2ee-toggle" style={{ color: "#d4d4d8", fontSize: "0.95rem", cursor: "pointer", userSelect: "none" }}>Bật mã hóa đầu cuối (E2EE)</label>
+            </div>
+            
             <button onClick={startMeeting} style={{ width: "100%", padding: "14px", fontSize: "1.05rem", fontWeight: "bold", backgroundColor: "#ef4444", color: "white", border: "none", borderRadius: "12px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", boxShadow: "0 6px 15px rgba(239, 68, 68, 0.4)", transition: "all 0.2s" }} onMouseOver={(e)=>e.currentTarget.style.transform='translateY(-2px)'} onMouseOut={(e)=>e.currentTarget.style.transform='translateY(0)'}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 5l7 7-7 7M5 5l7 7-7 7"/></svg>
               Bắt Đầu Cuộc Họp
@@ -125,7 +130,6 @@ export default function Page() {
   return (
     <div style={{ minHeight: "100dvh", backgroundColor: "#09090b", backgroundImage: "radial-gradient(circle at 50% 0%, rgba(220, 38, 38, 0.12), transparent 50%)", display: "flex", flexDirection: "column", fontFamily: "system-ui, -apple-system, sans-serif" }}>
       <main style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "1rem", zIndex: 1, overflowY: "auto" }}>
-        
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", width: "100%" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", justifyContent: "center" }}>
             <div className="tn-logo" style={{ background: "linear-gradient(135deg, #ef4444 0%, #991b1b 100%)", borderRadius: "14px", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "900", boxShadow: "0 10px 25px -5px rgba(220, 38, 38, 0.5)", border: "1px solid rgba(255,255,255,0.2)" }}>TN</div>
@@ -136,12 +140,10 @@ export default function Page() {
             <p className="tn-sub" style={{ color: "#a1a1aa", margin: 0 }}>Vận hành độc quyền bởi <b style={{color: "#ffffff"}}>Thanh Nguyen Group</b>.</p>
           </div>
         </div>
-
         <Suspense fallback={<div style={{color:"white"}}>Đang tải...</div>}>
           <Tabs />
         </Suspense>
       </main>
-
       <footer style={{ padding: "1.2rem 1rem", textAlign: "center", color: "#71717a", borderTop: "1px solid rgba(255,255,255,0.05)", background: "rgba(0,0,0,0.4)", backdropFilter: "blur(10px)", flexShrink: 0 }}>
         <p style={{ margin: "0 0 6px 0", fontSize: "0.85rem" }}>Bản quyền © 2026 <b style={{color:"#e4e4e7"}}>Thanh Nguyen Group</b>.</p>
         <p style={{ margin: 0, fontSize: "0.8rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", fontWeight: "500" }}>
@@ -149,7 +151,6 @@ export default function Page() {
             Bảo mật E2EE tuyệt đối
         </p>
       </footer>
-
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.3); } 100% { opacity: 1; transform: scale(1); } }
         input:focus, textarea:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2px rgba(239,68,68,0.25) !important; }
@@ -187,7 +188,6 @@ function overrideFile(filePath, replacerCallback) {
 
 // 1. DIỆT CẤU HÌNH METADATA CŨ VÀ THAY BẰNG CẤU HÌNH TUYỆT ĐỐI CỦA THANH NGUYEN
 overrideFile('app/layout.tsx', (content) => {
-    // Xóa bỏ hoàn toàn url base lỗi của hãng
     content = content.replace(/https:\/\/meet\.livekit\.io/g, 'https://meet.thanhnguyen.group');
     
     const newMetadata = `
@@ -222,7 +222,6 @@ export const metadata = {
   },
 };
 `;
-    // Tìm cụm "export const metadata ... = { ... };" và đè bằng cụm mới
     content = content.replace(/export const metadata[^=]*= \{[\s\S]*?\};/, newMetadata.trim());
     return content;
 });
@@ -253,7 +252,6 @@ if (fs.existsSync(cssPath)) {
 /* ========================================= */
 /* FIX GIAO DIỆN VIDEO: KHOẢNG CÁCH VÀ BO GÓC 5PX */
 /* ========================================= */
-/* Khoảng cách giữa các ô lưới */
 .lk-grid-layout {
     gap: 5px !important;
     padding: 5px !important;
@@ -264,7 +262,6 @@ if (fs.existsSync(cssPath)) {
 .lk-carousel {
     gap: 5px !important;
 }
-/* Độ bo góc chính xác 5px cho từng ô Video */
 .lk-participant-tile {
     border-radius: 5px !important;
     border: 1px solid rgba(255,255,255,0.08) !important;
