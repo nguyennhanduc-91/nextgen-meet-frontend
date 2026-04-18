@@ -7,12 +7,15 @@ RUN apk add --no-cache git bash python3 make g++ git-lfs wget
 RUN git clone https://github.com/livekit/meet.git .
 RUN git lfs install && git lfs pull
 
-# 2. Xóa ảnh rác của hãng và tải ảnh thương hiệu
-RUN mkdir -p public/images && \
-    wget -qO public/images/livekit-meet-open-graph.png "https://raw.githubusercontent.com/nguyennhanduc-91/nextgen-meet-frontend/main/ivekit-meet-open-graph.png" || true && \
+# =================================================================
+# 2. DIỆT TẬN GỐC ẢNH SEO CỦA HÃNG TRONG MỌI THƯ MỤC NEXT.JS
+# =================================================================
+RUN find . -name "*open-graph*" -delete && \
+    find . -name "opengraph-image*" -delete && \
+    find . -name "twitter-image*" -delete && \
+    find . -name "apple-touch*" -delete && \
     echo '<svg width="32" height="32" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#dc2626"/><text x="50%" y="50%" font-family="sans-serif" font-size="16" font-weight="bold" fill="#fff" text-anchor="middle" dominant-baseline="central">TN</text></svg>' > public/favicon.ico && \
-    echo '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>' > public/images/livekit-meet-home.svg && \
-    echo '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>' > public/images/livekit-apple-touch.png
+    echo '<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>' > public/images/livekit-meet-home.svg
 
 # 3. Cài đặt thư viện
 RUN corepack enable && corepack prepare pnpm@latest --activate
@@ -45,7 +48,7 @@ export async function GET(request: NextRequest) {
     const grant: VideoGrant = {
       roomJoin: true,
       room: roomName,
-      roomAdmin: true, // QUYỀN ADMIN LUÔN BẬT
+      roomAdmin: true, // QUYỀN ADMIN CHO MỌI NGƯỜI VÀO PHÒNG
       canPublish: true,
       canPublishData: true,
       canSubscribe: true,
@@ -68,7 +71,7 @@ export async function GET(request: NextRequest) {
 EOF
 
 # =================================================================
-# 5. GIAO DIỆN TRANG CHỦ (KHÔNG ẢNH OPEN GRAPH, CHỈ CÓ LOGO)
+# 5. GIAO DIỆN TRANG CHỦ: KHÔNG ẢNH OPEN GRAPH, GỌN GÀNG
 # =================================================================
 RUN cat <<'EOF' > app/page.tsx
 'use client';
@@ -120,26 +123,21 @@ function Tabs() {
 export default function Page() {
   return (
     <div style={{ minHeight: "100dvh", backgroundColor: "#09090b", backgroundImage: "radial-gradient(circle at 50% 0%, rgba(220, 38, 38, 0.12), transparent 50%)", display: "flex", flexDirection: "column", fontFamily: "system-ui, -apple-system, sans-serif" }}>
-      
       <main style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "1rem", zIndex: 1, overflowY: "auto" }}>
-        
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", width: "100%" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", justifyContent: "center" }}>
             <div className="tn-logo" style={{ background: "linear-gradient(135deg, #ef4444 0%, #991b1b 100%)", borderRadius: "14px", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "900", boxShadow: "0 10px 25px -5px rgba(220, 38, 38, 0.5)", border: "1px solid rgba(255,255,255,0.2)" }}>TN</div>
             <h1 className="tn-title" style={{ fontWeight: "900", color: "white", margin: 0, letterSpacing: "-0.04em" }}>NextGen <span style={{ color: "#ef4444" }}>Meet</span></h1>
           </div>
-
           <div style={{ maxWidth: "500px", margin: "1.5rem 0" }}>
             <p className="tn-slogan" style={{ color: "#f4f4f5", fontWeight: "500", margin: "0 0 4px 0", letterSpacing: "-0.01em" }}>Hệ thống Hội nghị Cấp độ Doanh nghiệp.</p>
             <p className="tn-sub" style={{ color: "#a1a1aa", margin: 0 }}>Vận hành độc quyền bởi <b style={{color: "#ffffff"}}>Thanh Nguyen Group</b>.</p>
           </div>
         </div>
-
         <Suspense fallback={<div style={{color:"white"}}>Đang tải...</div>}>
           <Tabs />
         </Suspense>
       </main>
-
       <footer style={{ padding: "1.2rem 1rem", textAlign: "center", color: "#71717a", borderTop: "1px solid rgba(255,255,255,0.05)", background: "rgba(0,0,0,0.4)", backdropFilter: "blur(10px)", flexShrink: 0 }}>
         <p style={{ margin: "0 0 6px 0", fontSize: "0.85rem" }}>Bản quyền © 2026 <b style={{color:"#e4e4e7"}}>Thanh Nguyen Group</b>.</p>
         <p style={{ margin: 0, fontSize: "0.8rem", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", fontWeight: "500" }}>
@@ -147,17 +145,14 @@ export default function Page() {
             Bảo mật E2EE tuyệt đối
         </p>
       </footer>
-
       <style dangerouslySetInnerHTML={{__html: `
         @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.3); } 100% { opacity: 1; transform: scale(1); } }
         input:focus, textarea:focus { border-color: #ef4444 !important; box-shadow: 0 0 0 2px rgba(239,68,68,0.25) !important; }
-        
         .tn-logo { width: 55px; height: 55px; font-size: 26px; }
         .tn-title { font-size: 46px; }
         .tn-slogan { font-size: 1.15rem; }
         .tn-sub { font-size: 0.9rem; }
         .tn-action-box { padding: 2rem; }
-
         @media (max-width: 640px) {
             .tn-logo { width: 42px; height: 42px; font-size: 20px; border-radius: 10px; }
             .tn-title { font-size: 32px; }
@@ -172,7 +167,7 @@ export default function Page() {
 EOF
 
 # =================================================================
-# 6. TIÊM MÃ SEO TUYỆT ĐỐI & CHỈNH CSS PHÒNG HỌP (5PX)
+# 6. TIÊM MÃ SEO TUYỆT ĐỐI VÀ CSS BO GÓC 5PX VÀO LÕI HỆ THỐNG
 # =================================================================
 RUN cat <<'EOF' > post_build.js
 const fs = require('fs');
@@ -185,46 +180,22 @@ function overrideFile(filePath, replacerCallback) {
     if (orig !== modified) fs.writeFileSync(filePath, modified, 'utf8');
 }
 
-// 1. TIÊM MÃ SEO TRỰC TIẾP VỚI ĐƯỜNG DẪN GITHUB TUYỆT ĐỐI (ÉP ZALO NHẬN)
+// 1. TIÊM LINK ẢNH GITHUB TRỰC TIẾP VÀO METADATA (ĐÁNH BẠI CACHE ZALO)
 overrideFile('app/layout.tsx', (content) => {
     content = content.replace(/LiveKit Meet \| Conference app build with LiveKit open source/g, 'Hệ thống Họp trực tuyến | Thanh Nguyen Group');
     content = content.replace(/LiveKit is an open source WebRTC project[^"']*/g, 'Nền tảng họp trực tuyến bảo mật cấp độ doanh nghiệp (E2EE).');
     content = content.replace(/@livekitted/g, '@thanhnguyen');
     
-    // Nếu chưa có openGraph, thay thế cụm metadata mặc định của Next.js
-    if (!content.includes('openGraph:')) {
-        content = content.replace(/export const metadata: Metadata = \{/, 
-            `export const metadata: Metadata = {
-              openGraph: {
-                title: 'Hệ thống Họp trực tuyến | Thanh Nguyen Group',
-                description: 'Nền tảng họp trực tuyến bảo mật cấp độ doanh nghiệp.',
-                images: [
-                  {
-                    url: 'https://raw.githubusercontent.com/nguyennhanduc-91/nextgen-meet-frontend/main/ivekit-meet-open-graph.png',
-                    width: 1200,
-                    height: 630,
-                    alt: 'Thanh Nguyen Group',
-                  },
-                ],
-                locale: 'vi_VN',
-                type: 'website',
-              },
-              twitter: {
-                card: 'summary_large_image',
-                title: 'Hệ thống Họp trực tuyến | Thanh Nguyen Group',
-                description: 'Nền tảng họp trực tuyến bảo mật cấp độ doanh nghiệp.',
-                images: ['https://raw.githubusercontent.com/nguyennhanduc-91/nextgen-meet-frontend/main/ivekit-meet-open-graph.png'],
-              },`
-        );
-    }
+    // Ghi đè url ảnh mặc định của hãng thành link GitHub tuyệt đối của bạn
+    content = content.replace(/\/images\/livekit-meet-open-graph\.png/g, 'https://raw.githubusercontent.com/nguyennhanduc-91/nextgen-meet-frontend/main/ivekit-meet-open-graph.png');
     return content;
 });
 
-// 2. CHỈNH SỬA CSS PHÒNG HỌP: KHOẢNG CÁCH 5PX, BO GÓC 5PX, FIX NÚT RỜI PHÒNG
+// 2. CSS UI PHÒNG HỌP: BO GÓC 5PX, CÁCH NHAU 5PX
 const cssPath = 'styles/globals.css';
 if (fs.existsSync(cssPath)) {
     const customCSS = `
-/* UI THANH CÔNG CỤ */
+/* THANH ĐIỀU KHIỂN KÍNH MỜ */
 .lk-control-bar {
     background: rgba(24, 24, 27, 0.85) !important;
     backdrop-filter: blur(20px) saturate(150%) !important;
@@ -232,7 +203,7 @@ if (fs.existsSync(cssPath)) {
     padding: 1rem !important;
 }
 
-/* NÚT RỜI PHÒNG ĐỎ/TRẮNG */
+/* FIX NÚT RỜI PHÒNG: NỀN ĐỎ - CHỮ TRẮNG */
 .lk-disconnect-button {
     background-color: #ef4444 !important;
     color: #ffffff !important;
@@ -243,7 +214,10 @@ if (fs.existsSync(cssPath)) {
     color: #ffffff !important; fill: #ffffff !important;
 }
 
-/* === FIX KHUNG VIDEO BO GÓC 5PX, CÁCH NHAU 5PX === */
+/* ========================================= */
+/* FIX GIAO DIỆN VIDEO: KHOẢNG CÁCH VÀ BO GÓC 5PX */
+/* ========================================= */
+/* Khoảng cách giữa các ô lưới */
 .lk-grid-layout {
     gap: 5px !important;
     padding: 5px !important;
@@ -254,11 +228,16 @@ if (fs.existsSync(cssPath)) {
 .lk-carousel {
     gap: 5px !important;
 }
+/* Độ bo góc chính xác 5px cho từng ô Video */
 .lk-participant-tile {
-    border-radius: 5px !important; /* Bo góc chính xác 5px theo yêu cầu */
+    border-radius: 5px !important;
     border: 1px solid rgba(255,255,255,0.08) !important;
 }
+.lk-participant-tile video {
+    border-radius: 5px !important;
+}
 
+/* Tối ưu Mobile */
 @media (max-width: 640px) {
     .lk-control-bar { padding: 0.5rem !important; gap: 0.25rem !important; }
     .lk-button { padding: 0.5rem !important; border-radius: 10px !important; }
@@ -267,7 +246,7 @@ if (fs.existsSync(cssPath)) {
     fs.appendFileSync(cssPath, customCSS, 'utf8');
 }
 
-// 3. Dịch Menu "Chuột Phải"
+// 3. DỊCH THUẬT MENU
 function translate(dir) {
     if (!fs.existsSync(dir)) return;
     fs.readdirSync(dir).forEach(file => {
