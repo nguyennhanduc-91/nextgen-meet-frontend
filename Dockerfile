@@ -188,11 +188,11 @@ function overrideFile(filePath, replacerCallback) {
 
 // 1. DIỆT CẤU HÌNH METADATA CŨ VÀ THAY BẰNG CẤU HÌNH TUYỆT ĐỐI CỦA THANH NGUYEN
 overrideFile('app/layout.tsx', (content) => {
-    content = content.replace(/https:\/\/meet\.livekit\.io/g, 'https://meet.thanhnguyen.group');
+    content = content.replace(/https:\/\/meet\.livekit\.io/g, 'https://room.thanhnguyen.group');
     
     const newMetadata = `
 export const metadata = {
-  metadataBase: new URL('https://meet.thanhnguyen.group'),
+  metadataBase: new URL('https://room.thanhnguyen.group'),
   title: {
     default: 'Hệ thống Họp trực tuyến | Thanh Nguyen Group',
     template: '%s | Thanh Nguyen Group',
@@ -201,8 +201,8 @@ export const metadata = {
   openGraph: {
     title: 'Hệ thống Họp trực tuyến | Thanh Nguyen Group',
     description: 'Nền tảng họp trực tuyến bảo mật cấp độ doanh nghiệp.',
-    url: 'https://meet.thanhnguyen.group',
-    siteName: 'Thanh Nguyen Meet',
+    url: 'https://room.thanhnguyen.group',
+    siteName: 'Thanh Nguyen Room',
     images: [
       {
         url: 'https://raw.githubusercontent.com/nguyennhanduc-91/nextgen-meet-frontend/main/ivekit-meet-open-graph.png',
