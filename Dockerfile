@@ -133,7 +133,7 @@ export default function Page() {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", width: "100%" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px", justifyContent: "center" }}>
             <div className="tn-logo" style={{ background: "linear-gradient(135deg, #ef4444 0%, #991b1b 100%)", borderRadius: "14px", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "900", boxShadow: "0 10px 25px -5px rgba(220, 38, 38, 0.5)", border: "1px solid rgba(255,255,255,0.2)" }}>TN</div>
-            <h1 className="tn-title" style={{ fontWeight: "900", color: "white", margin: 0, letterSpacing: "-0.04em" }}>NextGen <span style={{ color: "#ef4444" }}>Meet</span></h1>
+            <h1 className="tn-title" style={{ fontWeight: "900", color: "white", margin: 0, letterSpacing: "-0.04em" }}>NextGen <span style={{ color: "#ef4444" }}>Room</span></h1>
           </div>
           <div style={{ maxWidth: "500px", margin: "1.5rem 0" }}>
             <p className="tn-slogan" style={{ color: "#f4f4f5", fontWeight: "500", margin: "0 0 4px 0", letterSpacing: "-0.01em" }}>Hệ thống Hội nghị Cấp độ Doanh nghiệp.</p>
